@@ -20,16 +20,26 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20  # ensure modern TS support
           cache: 'npm'
 
+      - name: Verify package.json
+        run: |
+          echo "Current working directory:"
+          pwd
+          ls -al
+          test -f package.json || (echo "❌ package.json missing" && exit 1)
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --include=dev
+
+      - name: Verify TypeScript installation
+        run: npx tsc -v
 
       - name: Build TypeScript
         run: npm run build
 
-      - name: Remove source files
+      - name: Clean unnecessary files (keep compiled JS only)
         run: rm -rf src node_modules
 
       - name: Deploy to GitHub Pages
