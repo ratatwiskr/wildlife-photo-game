@@ -1,0 +1,20 @@
+{
+  "id": "dummy",
+  "name": "Savanna Test",
+  "layers": [
+    {
+      "id": "background",
+      "assets": [
+        { "id": "cloud1", "src": "./assets/svg/cloud.svg", "x": 100, "y": 50 },
+        { "id": "cloud2", "src": "./assets/svg/cloud.svg", "x": 600, "y": 80 }
+      ]
+    },
+    {
+      "id": "animals",
+      "assets": [
+        { "id": "elephant", "src": "./assets/svg/elephant.svg", "x": 300, "y": 250 },
+        { "id": "tree", "src": "./assets/svg/tree.svg", "x": 700, "y": 240 }
+      ]
+    }
+  ]
+}

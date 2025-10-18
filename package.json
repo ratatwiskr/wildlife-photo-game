@@ -1,0 +1,16 @@
+{
+  "name": "wildlife-photo-game",
+  "version": "0.1.0",
+  "description": "A simple wildlife photography game for kids, playable in the browser or on tablet.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "serve": "npx http-server . -p 8080 -c-1",
+    "dev": "npm run build && npm run serve"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "http-server": "^14.1.1"
+  }
+}
