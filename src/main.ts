@@ -1,6 +1,7 @@
 import { SceneRenderer } from "./sceneRenderer.js";
 import { InputHandler } from "./input.js";
 import type { SceneDefinition } from "./scene.js";
+import { Config } from "./config.js";
 
 async function loadScene(path: string): Promise<SceneDefinition> {
   const res = await fetch(path);
@@ -12,7 +13,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const container = document.getElementById("scene-container")!;
   const shutter = document.getElementById("shutter-button")!;
 
-  const scene = await loadScene("./assets/scenes/dummyScene.json");
+  const scene = await loadScene(Config.scenePath + "dummyScene.json");
   const renderer = new SceneRenderer(container, scene);
   renderer.render();
 
