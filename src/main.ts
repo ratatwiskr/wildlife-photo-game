@@ -1,34 +1,128 @@
-import { SceneRenderer } from "./sceneRenderer.js";
-import { InputHandler } from "./input.js";
-import type { SceneDefinition } from "./scene.js";
-import { Config } from "./config.js";
+import { Scene } from "./scene";
+import { SceneRenderer } from "./sceneRenderer";
+import { basePath } from "./config";
 
-async function loadScene(path: string): Promise<SceneDefinition> {
-  const res = await fetch(path);
-  return await res.json();
+/**
+ * main.ts
+ * --------
+ * Wildlife Photo Game main entry point.
+ * Loads scene definitions from JSON and handles user input, camera flash,
+ * and continuous rendering.
+ */
+
+const canvas = document.getElementById("game") as HTMLCanvasElement;
+const shutterButton = document.getElementById("shutter") as HTMLButtonElement;
+const sceneSelect = document.getElementById("sceneSelect") as HTMLSelectElement;
+
+let renderer: SceneRenderer;
+let scene: Scene;
+let lastTime = 0;
+let isLoaded = false;
+
+/** Initialize game */
+async function init() {
+  renderer = new SceneRenderer(canvas);
+  populateSceneSelect();
+
+  const params = new URLSearchParams(window.location.search);
+  const sceneName = params.get("scene") || "savanna";
+
+  try {
+    // Load scene definition JSON (e.g. /scenes/savanna.json)
+    const sceneDefUrl = `${basePath}/scenes/${sceneName}.json`;
+    const response = await fetch(sceneDefUrl);
+    if (!response.ok) throw new Error(`Failed to load ${sceneDefUrl}`);
+    const definition = await response.json();
+
+    scene = new Scene(definition);
+    await scene.loadImages(`${basePath}/assets/scenes/`);
+
+    renderer.setScene(scene);
+    renderer.currentObjective = definition.objectives?.[0];
+    isLoaded = true;
+  } catch (err) {
+    console.error("Scene load failed:", err);
+    drawErrorMessage(`Could not load scene: ${sceneName}`);
+    return;
+  }
+
+  shutterButton.addEventListener("click", onShutter);
+  canvas.addEventListener("click", onCanvasClick);
+
+  requestAnimationFrame(loop);
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  const viewport = document.getElementById("viewport")!;
-  const container = document.getElementById("scene-container")!;
-  const shutter = document.getElementById("shutter-button")!;
+/** Draw fallback message if loading fails */
+function drawErrorMessage(text: string) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "gray";
+  ctx.font = "24px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+}
 
-  const scene = await loadScene(Config.scenePath + "dummyScene.json");
-  const renderer = new SceneRenderer(container, scene);
-  renderer.render();
+/** Handle shutter click */
+function onShutter() {
+  if (!isLoaded) return;
+  renderer.triggerFlash();
+}
 
-  let offset = 0;
-  const maxOffset = -container.scrollWidth / 4;
-  const minOffset = 0;
+/** Handle player tapping or clicking the scene */
+function onCanvasClick(event: MouseEvent) {
+  if (!scene.mask) return;
 
-  new InputHandler(viewport, dx => {
-    offset += dx;
-    offset = Math.min(minOffset, Math.max(maxOffset, offset));
-    container.style.transform = `translateX(${offset}px)`;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor(((event.clientX - rect.left) / rect.width) * scene.mask.width);
+  const y = Math.floor(((event.clientY - rect.top) / rect.height) * scene.mask.height);
+
+  const temp = document.createElement("canvas");
+  temp.width = scene.mask.width;
+  temp.height = scene.mask.height;
+  const tempCtx = temp.getContext("2d");
+  if (!tempCtx) return;
+
+  tempCtx.drawImage(scene.mask, 0, 0);
+  const pixel = tempCtx.getImageData(x, y, 1, 1).data;
+  const hex = Scene.rgbToHex(pixel[0], pixel[1], pixel[2]);
+
+  const found = scene.markFoundByColor(hex);
+  if (found) {
+    console.log(`📸 Found: ${found}`);
+    renderer.triggerFlash();
+  }
+}
+
+/** Animation + render loop */
+function loop(timestamp: number) {
+  const delta = timestamp - lastTime;
+  lastTime = timestamp;
+
+  renderer.update();
+  renderer.draw();
+
+  requestAnimationFrame(loop);
+}
+
+/** Populate simple scene selector dropdown */
+function populateSceneSelect() {
+  const scenes = ["savanna", "arctic", "jungle"]; // add more as you create JSON files
+  for (const name of scenes) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    sceneSelect.appendChild(option);
+  }
+
+  const current = new URLSearchParams(window.location.search).get("scene");
+  if (current) sceneSelect.value = current;
+
+  sceneSelect.addEventListener("change", () => {
+    const name = sceneSelect.value;
+    window.location.search = `?scene=${name}`;
   });
+}
 
-  shutter.addEventListener("click", () => {
-    shutter.animate([{ transform: "scale(1)" }, { transform: "scale(0.9)" }, { transform: "scale(1)" }], { duration: 150 });
-    console.log("📸 Picture taken!");
-  });
-});
+init().catch(console.error);
