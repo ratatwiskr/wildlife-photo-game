@@ -1,34 +1,20 @@
 /**
- * Global configuration for the Wildlife Photo Game
- * Ensures consistent paths across local dev, LAN testing, and GitHub Pages.
+ * config.ts
+ * ----------
+ * Dynamically determines the correct base path for asset loading.
+ * This allows the game to work both locally (localhost) and on GitHub Pages.
  */
-export const Config = {
-  /**
-   * Detects base path dynamically depending on environment
-   * e.g.
-   *  - "/" on localhost or local web server
-   *  - "/wildlife-photo-game/" on GitHub Pages
-   */
-  get basePath(): string {
-    const path = window.location.pathname;
-    const repoName = "wildlife-photo-game";
 
-    if (path.includes(`/${repoName}/`)) {
-      return `/${repoName}/`;
-    }
-    return "/";
-  },
+const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-  /** Convenience path helpers */
-  get assetPath(): string {
-    return this.basePath + "assets/";
-  },
+// When hosted under a GitHub Pages project, infer path from URL
+// Example: https://ratatwiskr.github.io/wildlife-photo-game/
+const ghMatch = window.location.pathname.match(/^\/([^/]+)\//);
+const ghProjectName = ghMatch ? `/${ghMatch[1]}` : "";
 
-  get scenePath(): string {
-    return this.basePath + "scenes/";
-  },
+// Local builds: assets in the same directory
+// GitHub Pages: prefix with the project folder name
+export const basePath = isLocalhost ? "." : ghProjectName;
 
-  /** General metadata */
-  title: "Wildlife Photo Game",
-  version: "0.1.0",
-};
+// Optional helper for debugging:
+console.log(`[config] basePath = "${basePath}"`);
