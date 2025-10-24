@@ -16,7 +16,16 @@ const ghProjectName = ghMatch ? `/${ghMatch[1]}` : "";
 
 // Local builds: assets in the same directory
 // GitHub Pages: prefix with the project folder name
-export const basePath = isLocalhost ? "." : ghProjectName;
+
+export function getBasePath(location: Location = globalThis.location): string {
+  const isLocal =
+    location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const match = location.pathname.match(/^\/([^/]+)\//);
+  const project = match ? `/${match[1]}` : ".";
+  return isLocal ? "." : project;
+}
+
+export const basePath = getBasePath();
 
 // Optional helper for debugging:
 console.log(`[config] basePath = "${basePath}"`);
