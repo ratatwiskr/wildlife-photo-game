@@ -1,0 +1,29 @@
+{
+  // Unique scene name — must match JPG and PNG base filenames.
+  "name": "template_scene",
+
+  // List of discoverable objects.
+  "objects": [
+    {
+      // Unique per object. Prefer pattern: <type><index>
+      "name": "animal1",
+
+      // The exact color used in the mask PNG to mark this object.
+      // Must be unique across all objects in the same scene.
+      "color": "#ff0000",
+
+      // Tags define logical categories or objective groups.
+      // Example: ["animal"], ["bird"], ["vehicle"], ["tree"]
+      "tags": ["animal"]
+    }
+  ],
+
+  // Objectives define which tag groups must be found, in order.
+  "objectives": [
+    {
+      // Displayed to adult or in icon form to player
+      "title": "Find all animals 🦓",
+      "tag": "animal"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
-import { Scene } from "./scene";
-import { SceneRenderer } from "./sceneRenderer";
+import { Scene } from "./scene/Scene";
+import { SceneRenderer } from "./scene/SceneRenderer";
 import { basePath } from "./config";
 /**
  * main.ts
@@ -29,7 +29,7 @@ async function init() {
             throw new Error(`Failed to load ${sceneDefUrl}`);
         const definition = await response.json();
         scene = new Scene(definition);
-        await scene.loadImages(`${basePath}/assets/scenes/`);
+        await scene.loadImages();
         renderer.setScene(scene);
         renderer.currentObjective = definition.objectives?.[0];
         isLoaded = true;

@@ -1,0 +1,13 @@
+{
+  "description": "Color guide for mask creation. Each object color must be unique per scene.",
+  "colorGuide": [
+    { "name": "elephant1", "color": "#ff0000" },
+    { "name": "lion1", "color": "#00ff00" },
+    { "name": "jeep1", "color": "#0000ff" }
+  ],
+  "notes": [
+    "Use bright, unique, fully opaque colors.",
+    "Avoid anti-aliasing in mask PNG (use hard brush).",
+    "Transparent background everywhere else."
+  ]
+}
