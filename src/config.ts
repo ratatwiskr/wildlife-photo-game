@@ -5,7 +5,9 @@
  * This allows the game to work both locally (localhost) and on GitHub Pages.
  */
 
-const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const isLocalhost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
 
 // When hosted under a GitHub Pages project, infer path from URL
 // Example: https://ratatwiskr.github.io/wildlife-photo-game/

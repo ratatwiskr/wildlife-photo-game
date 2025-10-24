@@ -28,7 +28,7 @@ export class SceneRenderer {
         this.scene = scene;
         this.objectiveColors = {};
         // assign random color per objective tag
-        scene.definition.objectives?.forEach(obj => {
+        scene.definition.objectives?.forEach((obj) => {
             this.objectiveColors[obj.tag] = this.randomBrightColor();
         });
     }
@@ -81,7 +81,7 @@ export class SceneRenderer {
         if (!this.scene)
             return;
         const animals = this.scene.definition.animals;
-        animals.forEach(animal => {
+        animals.forEach((animal) => {
             if (!animal.found)
                 return;
             // pick outline color by first matching objective tag, fallback white
@@ -134,7 +134,7 @@ export class SceneRenderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("🎉 All Animals Found! 🎉", this.canvas.width / 2, this.canvas.height / 2 - 20);
-        const foundCount = this.scene?.definition.animals.filter(a => a.found).length ?? 0;
+        const foundCount = this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
         ctx.font = "32px sans-serif";
         ctx.fillText(`${foundCount} animals photographed`, this.canvas.width / 2, this.canvas.height / 2 + 40);
         ctx.restore();

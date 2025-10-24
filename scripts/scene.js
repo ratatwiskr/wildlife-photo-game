@@ -33,7 +33,7 @@ export class Scene {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
-            img.onerror = err => reject(err);
+            img.onerror = (err) => reject(err);
             img.src = src;
         });
     }
@@ -42,7 +42,7 @@ export class Scene {
      * Returns the animal name or null if not found.
      */
     markFoundByColor(hexColor) {
-        const animal = this.definition.animals.find(a => !a.found && a.color.toLowerCase() === hexColor.toLowerCase());
+        const animal = this.definition.animals.find((a) => !a.found && a.color.toLowerCase() === hexColor.toLowerCase());
         if (!animal)
             return null;
         animal.found = true;
@@ -53,13 +53,13 @@ export class Scene {
      * Used for active objectives.
      */
     filterActiveAnimals(tag) {
-        return this.definition.animals.filter(a => a.tags?.includes(tag));
+        return this.definition.animals.filter((a) => a.tags?.includes(tag));
     }
     /**
      * Whether all animals in the scene are found.
      */
     allFound(animals = this.definition.animals) {
-        return animals.every(a => a.found);
+        return animals.every((a) => a.found);
     }
     /**
      * Convert RGB triplet to hex string.

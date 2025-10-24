@@ -75,8 +75,12 @@ function onCanvasClick(event: MouseEvent) {
   if (!scene.mask) return;
 
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor(((event.clientX - rect.left) / rect.width) * scene.mask.width);
-  const y = Math.floor(((event.clientY - rect.top) / rect.height) * scene.mask.height);
+  const x = Math.floor(
+    ((event.clientX - rect.left) / rect.width) * scene.mask.width
+  );
+  const y = Math.floor(
+    ((event.clientY - rect.top) / rect.height) * scene.mask.height
+  );
 
   const temp = document.createElement("canvas");
   temp.width = scene.mask.width;

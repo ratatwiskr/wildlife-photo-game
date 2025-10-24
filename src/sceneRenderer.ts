@@ -34,7 +34,7 @@ export class SceneRenderer {
     this.scene = scene;
     this.objectiveColors = {};
     // assign random color per objective tag
-    scene.definition.objectives?.forEach(obj => {
+    scene.definition.objectives?.forEach((obj) => {
       this.objectiveColors[obj.tag] = this.randomBrightColor();
     });
   }
@@ -56,7 +56,13 @@ export class SceneRenderer {
     }
 
     // Draw base scene image
-    ctx.drawImage(this.scene.image, 0, 0, this.canvas.width, this.canvas.height);
+    ctx.drawImage(
+      this.scene.image,
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height
+    );
 
     // Draw overlays for found animals
     this.drawFoundOutlines(ctx);
@@ -90,14 +96,18 @@ export class SceneRenderer {
     ctx.font = "24px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("No scene selected", this.canvas.width / 2, this.canvas.height / 2);
+    ctx.fillText(
+      "No scene selected",
+      this.canvas.width / 2,
+      this.canvas.height / 2
+    );
   }
 
   /** Draw outline or highlight for each found animal */
   private drawFoundOutlines(ctx: CanvasRenderingContext2D) {
     if (!this.scene) return;
     const animals = this.scene.definition.animals;
-    animals.forEach(animal => {
+    animals.forEach((animal) => {
       if (!animal.found) return;
 
       // pick outline color by first matching objective tag, fallback white
@@ -153,9 +163,14 @@ export class SceneRenderer {
     ctx.font = "bold 48px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("🎉 All Animals Found! 🎉", this.canvas.width / 2, this.canvas.height / 2 - 20);
+    ctx.fillText(
+      "🎉 All Animals Found! 🎉",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 20
+    );
 
-    const foundCount = this.scene?.definition.animals.filter(a => a.found).length ?? 0;
+    const foundCount =
+      this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
     ctx.font = "32px sans-serif";
     ctx.fillText(
       `${foundCount} animals photographed`,
