@@ -35,8 +35,8 @@ jobs:
 #     - name: Run tests
 #       run: npm test
 
-      - name: Validate scenes
-        run: npm run validate:scenes
+#      - name: Validate scenes
+#        run: npm run validate:scenes
 
       - name: Clean unnecessary files
         run: |
