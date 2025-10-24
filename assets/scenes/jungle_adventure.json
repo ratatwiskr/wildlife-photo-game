@@ -1,0 +1,7 @@
+{
+  "name": "jungle_adventure",
+  "objects": [
+    { "name": "lion1", "color": "#00ff00", "tags": ["lion"], "found": false }
+  ],
+  "objectives": [{ "title": "Find the 🦁", "tags": ["lion"], "emoji": "🦁" }]
+}
