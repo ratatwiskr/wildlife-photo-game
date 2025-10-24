@@ -1,10 +1,3 @@
-/**
- * scene.ts
- * ---------
- * Defines core data structures and logic for scenes and animals.
- * Pure logic — no DOM, no canvas dependency. Ideal for Jest tests.
- */
-
 export interface Animal {
   name: string;
   color: string; // hex code from mask
@@ -24,9 +17,13 @@ export interface SceneDefinition {
   objectives?: Objective[];
 }
 
+import { basePath } from "../config";
+
 /**
  * Scene
  * -----
+ * Defines core data structures and logic for scenes and animals.
+ *
  * Represents one playable scene. Responsible for loading images,
  * maintaining found state, and resolving animals by color.
  */
@@ -44,12 +41,18 @@ export class Scene {
    * The files are automatically matched by scene name:
    *   e.g. "savanna.jpg" + "savanna_mask.png"
    */
-  async loadImages(basePath = "./assets/scenes/"): Promise<void> {
-    const sceneName = this.definition.name;
-    const bgUrl = `${basePath}${sceneName}.jpg`;
-    const maskUrl = `${basePath}${sceneName}_mask.png`;
-    this.image = await this.loadImage(bgUrl);
-    this.mask = await this.loadImage(maskUrl);
+  async loadImages(): Promise<void> {
+    // Use basePath for loading images
+    const imageUrl = `${basePath}/assets/scenes/${this.definition.name}.jpg`;
+    const maskUrl = `${basePath}/assets/scenes/${this.definition.name}_mask.png`;
+
+    const [img, mask] = await Promise.all([
+      this.loadImage(imageUrl),
+      this.loadImage(maskUrl),
+    ]);
+
+    this.image = img;
+    this.mask = mask;
   }
 
   private loadImage(src: string): Promise<HTMLImageElement> {

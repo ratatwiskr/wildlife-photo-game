@@ -1,5 +1,5 @@
-import { Scene } from "./scene";
-import { SceneRenderer } from "./sceneRenderer";
+import { Scene } from "./scene/Scene";
+import { SceneRenderer } from "./scene/SceneRenderer";
 import { basePath } from "./config";
 
 /**
@@ -35,7 +35,7 @@ async function init() {
     const definition = await response.json();
 
     scene = new Scene(definition);
-    await scene.loadImages(`${basePath}/assets/scenes/`);
+    await scene.loadImages();
 
     renderer.setScene(scene);
     renderer.currentObjective = definition.objectives?.[0];

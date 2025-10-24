@@ -6,12 +6,12 @@
  */
 
 const isLocalhost =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
+  globalThis.location.hostname === "localhost" ||
+  globalThis.location.hostname === "127.0.0.1";
 
 // When hosted under a GitHub Pages project, infer path from URL
 // Example: https://ratatwiskr.github.io/wildlife-photo-game/
-const ghMatch = window.location.pathname.match(/^\/([^/]+)\//);
+const ghMatch = globalThis.location.pathname.match(/^\/([^/]+)\//);
 const ghProjectName = ghMatch ? `/${ghMatch[1]}` : "";
 
 // Local builds: assets in the same directory

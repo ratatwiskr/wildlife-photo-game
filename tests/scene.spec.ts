@@ -1,8 +1,9 @@
 import { Scene, Animal } from "../src/scene/Scene";
 
 describe("Scene", () => {
+  const sceneName = "jungle_adventure"; // Use an existing scene name for testing
   const testDefinition = {
-    name: "test-scene",
+    name: sceneName,
     animals: [
       { name: "elephant", color: "#ff0000", tags: ["elephant"], found: false },
       { name: "lion", color: "#00ff00", tags: ["lion"], found: false },
