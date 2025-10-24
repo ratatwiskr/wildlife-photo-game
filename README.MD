@@ -1,22 +1,13 @@
-## 🦁 Wildlife Photo Game — Context Prompt for Future Chats
+# 🦁 Wildlife Photo / Wimmelbild Game
 
 **Project goal:**
-A tablet-friendly *wildlife photography game* for children aged **2–6**, designed for iPad or Android tablets with a thick stylus (e.g. Edurino pen).
-Players “look around” a scenic environment, find cute animals, and tap the camera button to take photos.
+A tablet-friendly *photo hunt game* for children (2–6), now extensible to “wimmelbild”-style tasks: find animals, planes, or other objects. Supports real photos or illustrations.
+
+Players **pan/drag** or use a stylus to find objects in a scene and tap/click to capture them.
 
 ---
 
-### 🧱 Current State
-
-* Fully working **TypeScript + HTML + CSS** prototype
-* Builds automatically via **GitHub Actions**
-* Deployed on **GitHub Pages:**
-  👉 [https://ratatwiskr.github.io/wildlife-photo-game/](https://ratatwiskr.github.io/wildlife-photo-game/)
-* Code is modular, simple, and maintainable.
-
----
-
-### 🗂️ Project Structure
+## 🗂️ Project Structure
 
 ```
 .
@@ -26,138 +17,178 @@ Players “look around” a scenic environment, find cute animals, and tap the c
 │   ├── main.ts
 │   ├── sceneRenderer.ts
 │   ├── scene.ts
-│   ├── config.ts          # dynamic base paths (local vs. GitHub Pages)
-│   └── input.ts           # for drag/pen camera input
+│   ├── config.ts
+│   └── input.ts
 ├── scripts/               # compiled JS output
 ├── assets/
 │   ├── animals/*.svg
-│   ├── backgrounds/*.svg
+│   ├── backgrounds/*.svg or .jpg
 │   └── icons/*.svg
-├── scenes/*.json
+├── scenes/
+│   ├── scene_name.jpg      # full scene
+│   ├── scene_name_mask.png # color-coded object positions
+│   └── scene_name.json     # scene definition
+├── tests/                 # jest / cypress tests
 ├── package.json
 ├── tsconfig.json
-└── .github/workflows/deploy.yml
+└── .github/workflows/
 ```
 
 ---
 
-### 🎮 Current Gameplay Features
+## ⚙️ Scene Naming Conventions
 
-* Camera UI with frame and shutter button
-* Scene rendering based on JSON definition:
+* **Base name** of scene files (jpg, png, json) must match exactly.
+* **File suffixes**:
 
-  * background layers
-  * animals positioned by coordinates
-* Dynamic `basePath` detection (via `config.ts`)
-  → Works locally *and* on GitHub Pages
-* Functional CI/CD via GitHub Actions
+  * `.jpg` → panorama / illustration
+  * `_mask.png` → color-coded overlay
+  * `.json` → scene definition
+* **Example**:
 
----
+  ```
+  jungle_adventure.jpg
+  jungle_adventure_mask.png
+  jungle_adventure.json
+  ```
+* **Identifiers** for objects are **unique names**:
 
-### 🚧 Planned / In-progress
+  * elephant1, elephant2, lion1
+  * Avoid duplicates; any type of object (planes, trees, toys…) is allowed.
+* The validator checks for:
 
-1. ✨ **Flash effect** when taking a picture
-   → white overlay fade animation
-2. 📸 **Shutter button reposition** above display window
-3. 🌍 **Larger scrollable/pannable scene** (horizontal + vertical)
-
-   * likely drag-to-pan input, no scrollbars
-4. 🖊️ **Input system** (`input.ts`) for stylus/touch control
-5. 🦓 **Animal wiggle animations** (simple SVG motion)
-6. 🔊 **Sound feedback** when taking photos
-7. 🎨 **Additional scenes** (savanna, arctic, jungle…)
-
----
-
-### 🛠️ Tech Notes
-
-* Written in **TypeScript**, compiled to plain JS in `scripts/`
-* Pure **HTML5 + Canvas + SVG** (no heavy frameworks)
-* Scene & asset placement controlled via JSON
-* Works offline and on tablets
-* Uses **absolute pixel coordinates** for initial layout (may evolve)
-* Clean separation of responsibilities:
-
-  * `main.ts` → entry point
-  * `sceneRenderer.ts` → drawing logic
-  * `scene.ts` → data structures
-  * `config.ts` → environment detection
-  * `input.ts` → interaction handling (planned)
+  * Missing masks or JSON
+  * Duplicate object identifiers
+  * Scene image & mask dimension mismatches
 
 ---
 
-### ⚙️ Developer Quick Start
+## 📝 Scene JSON Structure
 
-#### 🧩 1. Install dependencies
+```ts
+{
+  "name": "jungle_adventure",
+  "objects": [
+    { "id": "elephant1", "tags": ["elephant"], "found": false },
+    { "id": "lion1",     "tags": ["lion"],     "found": false }
+  ],
+  "objectives": [
+    { "title": "Find all 🐘", "tags": ["elephant"], "emoji": "🐘" },
+    { "title": "Find all 🦁", "tags": ["lion"],     "emoji": "🦁" }
+  ]
+}
+```
+
+> **Note:** `id` must be unique. Tags group objects per task. `emoji` is shown for pre-readers.
+
+---
+
+## 🎮 Game Flow
+
+```mermaid
+flowchart TD
+    A[Start / Scene Selection] --> B[Load Scene Assets: JPG + Mask + JSON]
+    B --> C[Initialize Renderer & Input]
+    C --> D[Current Objective Display]
+    D --> E[User Drag / Camera / Tap]
+    E --> F{Color at Tap matches Mask?}
+    F -->|Yes| G[Mark object found & draw overlay]
+    F -->|No| D
+    G --> H{All objects in objective found?}
+    H -->|Yes| I[Play Celebration / Flash]
+    I --> J{More Objectives?}
+    J -->|Yes| D
+    J -->|No| K[Show Total Found & Back to Scene Selection]
+```
+
+---
+
+## 🛠️ Developer Notes
+
+* Modular TS code: `SceneRenderer`, `Scene`, `Input`, `Config`.
+* **Mask-based detection**: allows using any image / illustration without hardcoding positions.
+* Supports multiple sequential objectives in the same scene.
+* Unique object IDs allow grouping and tracking progress.
+* Camera / drag mechanics fully abstracted from scene content.
+
+---
+
+## ✅ Scene Validation Workflow
+
+```mermaid
+flowchart TD
+    A[Add new scene files: jpg + mask + json] --> B[Run local validator or CI]
+    B -->|Valid| C[Scene ready for gameplay]
+    B -->|Invalid| D[Fix naming, masks, or JSON]
+    D --> B
+```
+
+**Example GitHub Action:**
+
+```yaml
+name: Validate Scenes
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate-scenes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --include=dev
+      - run: npm run validate:scenes
+```
+
+* Validator is **read-only**, fails CI if any scene is invalid.
+* Can be executed locally:
+
+  ```bash
+  npm run validate:scenes
+  ```
+
+---
+
+## 📦 Developer Quick Start
 
 ```bash
 npm install
-```
-
-#### 🧱 2. Build TypeScript
-
-```bash
 npm run build
+npm run serve # or npx http-server .
 ```
 
-*(compiles `src/` → `scripts/`)*
+* Open on tablet: `http://<local-ip>:8080`
+* CI/CD deploys to GitHub Pages automatically.
 
-#### 🧪 3. Run locally
-
-Either:
-
+### Quick setup for Volta on Ubuntu
 ```bash
-npm run serve
-```
+# remove old nodejs/npm
+sudo apt remove nodejs npm -y
 
-or if not defined:
+# install volta
+curl https://get.volta.sh | bash
+exec $SHELL
 
-```bash
-npx http-server .
-```
+# install node (latest LTS)
+volta install node
 
-Then open:
-
-```
-http://localhost:8080
-```
-
-To test on a tablet:
-
-* Find your local IP (`ip a` on Linux)
-* Visit `http://<your-ip>:8080` on your tablet browser (same WiFi)
-* No firewall rules needed if Ubuntu UFW is disabled
-
-#### 🚀 4. Deploy automatically
-
-Push to `main` → GitHub Actions builds → publishes to
-`gh-pages` branch → available at:
-
-```
-https://<username>.github.io/wildlife-photo-game/
+# verify
+node -v
+npm -v
 ```
 
 ---
 
-### 💡 Developer Principles
+## 💡 Extending to Wimmelbilder
 
-* 🧩 Clean modular code (classes separated by concern)
-* 🧠 Simple over abstract — this is a children’s game
-* 🎨 SVGs are **static**, arranged visually (e.g. in Inkscape)
-* 🧮 Positions exported to JSON and rendered via Canvas
-* 🧒 Touch/stylus-first UX (no small targets, no fine motor tasks)
-* 🧷 Kid-friendly performance: low animation load, few dependencies
-
----
-
-### 🔜 Next Milestones
-
-* [ ] Add white flash overlay animation
-* [ ] Reposition shutter button above viewport
-* [ ] Expand renderer for large vertical scenes
-* [ ] Implement drag-based camera panning
-* [ ] Test responsiveness on iPad + Android tablet
-* [ ] Add sound and scoring feedback
-* [ ] Build 2–3 themed scenes
-
----
+* Any type of object can be added: planes, toys, soccer balls, etc.
+* Tasks are just **objective groups** with tags.
+* Mask image color codes track hits.
+* Drag-to-find replaces camera if needed.
+* Supports multiple sequential objectives in a single scene.
