@@ -25,11 +25,13 @@ async function init() {
   populateSceneSelect();
 
   const params = new URLSearchParams(window.location.search);
-  const sceneName = params.get("scene") || "savanna";
+  const sceneName = params.get("scene") || "jungle_adventure";
 
   try {
-    // Load scene definition JSON (e.g. /scenes/savanna.json)
-    const sceneDefUrl = `${basePath}/scenes/${sceneName}.json`;
+    // ✅ Corrected path to include /assets/scenes/
+    const sceneDefUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+    console.log(`[main] Loading scene definition: ${sceneDefUrl}`);
+
     const response = await fetch(sceneDefUrl);
     if (!response.ok) throw new Error(`Failed to load ${sceneDefUrl}`);
     const definition = await response.json();
@@ -40,6 +42,8 @@ async function init() {
     renderer.setScene(scene);
     renderer.currentObjective = definition.objectives?.[0];
     isLoaded = true;
+
+    console.log(`[main] Scene loaded successfully: ${sceneName}`);
   } catch (err) {
     console.error("Scene load failed:", err);
     drawErrorMessage(`Could not load scene: ${sceneName}`);
@@ -112,7 +116,7 @@ function loop(timestamp: number) {
 
 /** Populate simple scene selector dropdown */
 function populateSceneSelect() {
-  const scenes = ["savanna", "arctic", "jungle"]; // add more as you create JSON files
+  const scenes = ["jungle_adventure", "savanna", "arctic", "jungle"]; // add more JSONs as you create them
   for (const name of scenes) {
     const option = document.createElement("option");
     option.value = name;
