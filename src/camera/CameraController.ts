@@ -1,6 +1,6 @@
-import { Scene } from "../scene/Scene";
-import { AimAssist, Viewport } from "./AimAssist";
-import { Cooldown } from "../utils/Cooldown";
+import { Scene } from "../scene/Scene.js";
+import { AimAssist, Viewport } from "./AimAssist.js";
+import { Cooldown } from "../utils/Cooldown.js";
 
 export class CameraController {
   private viewport: Viewport;

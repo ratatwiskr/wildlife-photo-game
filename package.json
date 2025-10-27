@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "tsc:clean": "tsc -b --clean",
     "watch": "tsc --watch",
     "serve": "npx http-server . -p 8090 -c-1",
     "dev": "npm run build && npm run serve",

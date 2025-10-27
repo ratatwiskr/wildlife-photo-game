@@ -1,4 +1,4 @@
-import { Animal } from "../scene/Scene";
+import { Animal } from "../scene/Scene.js";
 
 export interface Viewport {
   x: number;

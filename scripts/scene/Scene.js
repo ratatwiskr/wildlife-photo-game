@@ -1,4 +1,4 @@
-import { basePath } from "../config";
+import { basePath } from "../config.js";
 /**
  * Scene
  * -----

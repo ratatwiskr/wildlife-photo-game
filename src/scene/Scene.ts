@@ -17,7 +17,7 @@ export interface SceneDefinition {
   objectives?: Objective[];
 }
 
-import { basePath } from "../config";
+import { basePath } from "../config.js";
 
 /**
  * Scene

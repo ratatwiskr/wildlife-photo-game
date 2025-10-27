@@ -1,6 +1,6 @@
-import { Scene } from "./scene/Scene";
-import { SceneRenderer } from "./scene/SceneRenderer";
-import { basePath } from "./config";
+import { Scene } from "./scene/Scene.js";
+import { SceneRenderer } from "./scene/SceneRenderer.js";
+import { basePath } from "./config.js";
 /**
  * main.ts
  * --------
