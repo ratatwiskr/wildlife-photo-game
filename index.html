@@ -14,15 +14,14 @@
   <body>
     <div id="viewport">
       <div id="camera-frame">
-        <div id="scene-container"></div>
+        <canvas id="game" width="1024" height="512"></canvas>
         <div id="ui">
           <select id="sceneSelect"></select>
-          <button id="shutter-button" title="Take Photo">📸</button>
+          <button id="shutter" title="Take Photo">📸</button>
         </div>
       </div>
     </div>
 
-    <!-- The main entry point for the TypeScript build -->
     <script type="module" src="./scripts/main.js"></script>
   </body>
 </html>
