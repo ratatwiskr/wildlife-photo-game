@@ -1,6 +1,7 @@
 import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
 import { basePath } from "./config.js";
+import { Viewport } from "./scene/Viewport.js";
 /**
  * main.ts
  * --------
@@ -15,10 +16,17 @@ let renderer;
 let scene;
 let lastTime = 0;
 let isLoaded = false;
+const viewport = new Viewport(canvas.width, canvas.height);
 /** Initialize game */
 async function init() {
     renderer = new SceneRenderer(canvas);
     populateSceneSelect();
+    // TODO: right place?
+    renderer.setViewport(viewport);
+    // TODO: right place?
+    // inputHandler = new InputHandler(canvas, (dx) => {
+    //   viewport.x -= dx; // pan left/right
+    // });
     const params = new URLSearchParams(window.location.search);
     const sceneName = params.get("scene") || "jungle_adventure";
     try {
@@ -110,4 +118,9 @@ function populateSceneSelect() {
         window.location.search = `?scene=${name}`;
     });
 }
+// call after drag updates
+// clamp(sceneWidth: number, sceneHeight: number) {
+//   this.x = Math.max(0, Math.min(this.x, sceneWidth - this.width));
+//   this.y = Math.max(0, Math.min(this.y, sceneHeight - this.height));
+// }
 init().catch(console.error);
