@@ -1,3 +1,4 @@
+import { Viewport } from "./Viewport.js";
 /**
  * SceneRenderer
  * --------------
@@ -8,6 +9,7 @@ export class SceneRenderer {
     canvas;
     ctx;
     scene;
+    viewport;
     // Overlay / UI
     flashAlpha = 0;
     flashFadeRate = 0.05;
@@ -22,6 +24,7 @@ export class SceneRenderer {
         if (!ctx)
             throw new Error("Canvas 2D context not supported");
         this.ctx = ctx;
+        this.viewport = new Viewport(canvas.width, canvas.height);
     }
     /** Bind a scene to be rendered */
     setScene(scene) {
@@ -31,6 +34,9 @@ export class SceneRenderer {
         scene.definition.objectives?.forEach((obj) => {
             this.objectiveColors[obj.tag] = this.randomBrightColor();
         });
+    }
+    setViewport(v) {
+        this.viewport = v;
     }
     /** Trigger a white flash overlay (photo capture) */
     triggerFlash() {
@@ -45,6 +51,10 @@ export class SceneRenderer {
             this.drawNoScene(ctx);
             return;
         }
+        ctx.save();
+        this.viewport.apply(ctx);
+        ctx.drawImage(this.scene.image, 0, 0);
+        ctx.restore();
         // Draw base scene image
         ctx.drawImage(this.scene.image, 0, 0, this.canvas.width, this.canvas.height);
         // Draw overlays for found animals

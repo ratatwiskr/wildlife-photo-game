@@ -1,4 +1,5 @@
 import { Scene } from "./Scene.js";
+import { Viewport } from "./Viewport.js";
 
 /**
  * SceneRenderer
@@ -10,6 +11,7 @@ export class SceneRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private scene?: Scene;
+  private viewport: Viewport;
 
   // Overlay / UI
   private flashAlpha = 0;
@@ -27,6 +29,7 @@ export class SceneRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D context not supported");
     this.ctx = ctx;
+    this.viewport = new Viewport(canvas.width, canvas.height);
   }
 
   /** Bind a scene to be rendered */
@@ -37,6 +40,10 @@ export class SceneRenderer {
     scene.definition.objectives?.forEach((obj) => {
       this.objectiveColors[obj.tag] = this.randomBrightColor();
     });
+  }
+
+  setViewport(v: Viewport) {
+    this.viewport = v;
   }
 
   /** Trigger a white flash overlay (photo capture) */
@@ -54,6 +61,11 @@ export class SceneRenderer {
       this.drawNoScene(ctx);
       return;
     }
+
+    ctx.save();
+    this.viewport.apply(ctx);
+    ctx.drawImage(this.scene.image, 0, 0);
+    ctx.restore();
 
     // Draw base scene image
     ctx.drawImage(
