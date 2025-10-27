@@ -1,26 +1,14 @@
-import { basePath } from "../src/config";
+import { getBasePath } from "../src/config";
 
-describe("config.ts", () => {
-  test("detects GitHub Pages path", () => {
-    const oldLocation = globalThis.location;
-    // @ts-ignore
-    globalThis.location = {
-      href: "https://ratatwiskr.github.io/wildlife-photo-game/index.html",
-    };
+test("returns '.' for localhost", () => {
+  const mockLoc = { hostname: "localhost", pathname: "/" } as Location;
+  expect(getBasePath(mockLoc)).toBe(".");
+});
 
-    expect(basePath).toContain("wildlife-photo-game");
-
-    // restore
-    globalThis.location = oldLocation;
-  });
-
-  test("detects local environment", () => {
-    const oldLocation = globalThis.location;
-    // @ts-ignore
-    globalThis.location = { href: "http://localhost:8080/index.html" };
-
-    expect(basePath).toBe("./");
-
-    globalThis.location = oldLocation;
-  });
+test("returns /project for GitHub Pages", () => {
+  const mockLoc = {
+    hostname: "ratatwiskr.github.io",
+    pathname: "/wildlife-photo-game/",
+  } as Location;
+  expect(getBasePath(mockLoc)).toBe("/wildlife-photo-game");
 });
