@@ -25,6 +25,27 @@ async function init() {
         return;
     }
     renderer = new SceneRenderer(canvas);
+    // ensure canvas backing resolution matches CSS size (hi-dpi aware)
+    function resizeCanvasToDisplaySize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width * dpr));
+        const h = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
+        }
+    }
+    // initial resize and on window resize
+    resizeCanvasToDisplaySize();
+    window.addEventListener("resize", () => {
+        resizeCanvasToDisplaySize();
+        // when display size changes, recompute renderer viewport sizing so
+        // viewport.world -> canvas backing mapping stays consistent
+        if (renderer && scene) {
+            renderer.setScene(scene);
+        }
+    });
     populateSceneSelect();
     const params = new URLSearchParams(window.location.search);
     const sceneName = params.get("scene") || "jungle_adventure";
@@ -40,6 +61,11 @@ async function init() {
         scene.extractPositionsFromMask(); // compute centroids
         renderer.setScene(scene);
         renderer.currentObjective = def.objectives?.[0];
+        // update DOM HUD objective emoji/title
+        const objEl = document.getElementById("objective");
+        if (objEl && def.objectives && def.objectives[0]) {
+            objEl.textContent = def.objectives[0].emoji || def.objectives[0].title || "📍";
+        }
         isLoaded = true;
         // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
         new InputHandler(canvas, (dxScreen, dyScreen) => {
@@ -77,9 +103,11 @@ function onCanvasClick(e) {
     if (!isLoaded || !renderer || !renderer.viewport || !scene)
         return;
     const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    // convert to world coords
+    const dpr = window.devicePixelRatio || 1;
+    // convert client (CSS) coordinates to canvas backing pixels
+    const clickX = (e.clientX - rect.left) * dpr;
+    const clickY = (e.clientY - rect.top) * dpr;
+    // convert to world coords using viewport -> world mapping
     const vx = renderer.viewport.x;
     const vy = renderer.viewport.y;
     const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
@@ -135,13 +163,21 @@ canvas.addEventListener("pointerdown", (e) => {
     canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener("pointermove", (e) => {
-    if (!isDragging || !scene || !renderer)
+    if (!isDragging || !scene || !renderer || !renderer.viewport)
         return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    // movement in CSS pixels -> backing pixels
+    const dxCss = e.clientX - lastX;
+    const dyCss = e.clientY - lastY;
     lastX = e.clientX;
     lastY = e.clientY;
-    renderer.moveCamera(-dx, -dy);
+    const dx = dxCss * dpr;
+    const dy = dyCss * dpr;
+    // convert screen delta to world delta and pan viewport
+    const worldDx = (dx / canvas.width) * renderer.viewport.width;
+    const worldDy = (dy / canvas.height) * renderer.viewport.height;
+    renderer.viewport.pan(-worldDx, -worldDy);
 });
 canvas.addEventListener("pointerup", (e) => {
     isDragging = false;

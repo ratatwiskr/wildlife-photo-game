@@ -3,8 +3,8 @@ import { Scene } from "./Scene.js";
 import { Viewport } from "./Viewport.js";
 
 export class SceneRenderer {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
   private scene?: Scene;
   public viewport?: Viewport;
 
@@ -16,7 +16,7 @@ export class SceneRenderer {
   private maxY = 0;
 
   private flashAlpha = 0;
-  private flashFadeRate = 0.06;
+  private readonly flashFadeRate = 0.06;
   private flashActive = false;
 
   private objectiveColors: Record<string, string> = {};
@@ -49,9 +49,11 @@ export class SceneRenderer {
 
     // objective colors
     this.objectiveColors = {};
-    scene.definition.objectives?.forEach((o) => {
-      this.objectiveColors[o.tag] = this.randomBrightColor();
-    });
+    if (scene.definition.objectives) {
+      for (const o of scene.definition.objectives) {
+        this.objectiveColors[o.tag] = this.randomBrightColor();
+      }
+    }
 
     // compute scrollable bounds
     this.maxX = Math.max(0, scene.image.width - this.canvas.width);
@@ -77,19 +79,19 @@ export class SceneRenderer {
       return;
     }
 
-    // Draw source rect (viewport) to full canvas
-    // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-    ctx.drawImage(
-      this.scene.image,
-      this.cameraX,
-      this.cameraY,
-      this.canvas.width,
-      this.canvas.height, // source rect from image
-      0,
-      0,
-      this.canvas.width,
-      this.canvas.height // destination rect on canvas
-    );
+  // Draw source rect (viewport.world) to full canvas.
+  // The viewport stores world pixels to show; draw that region from the scene image
+  // and scale it to the canvas backing resolution.
+  const sx = this.viewport.x;
+  const sy = this.viewport.y;
+  const sWidth = this.viewport.width;
+  const sHeight = this.viewport.height;
+  const dx = 0;
+  const dy = 0;
+  const dWidth = this.canvas.width;
+  const dHeight = this.canvas.height;
+
+  ctx.drawImage(this.scene.image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
 
     // draw outlines for found animals that are within viewport
     this.drawFoundOutlines();
@@ -103,20 +105,7 @@ export class SceneRenderer {
       ctx.restore();
     }
 
-    // draw current objective (emoji / title) top center
-    if (this.currentObjective) {
-      ctx.save();
-      ctx.font = "bold 28px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "white";
-      ctx.fillText(
-        this.currentObjective.emoji ?? this.currentObjective.title,
-        this.canvas.width / 2,
-        8
-      );
-      ctx.restore();
-    }
+  // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
 
     // celebration overlay
     if (this.scene.allFound(this.scene.definition.animals)) {
@@ -137,14 +126,14 @@ export class SceneRenderer {
       if (!animal.found) continue;
       if (animal.x == null || animal.y == null) continue;
 
-      // is centroid inside viewport?
-      if (!this.viewport.contains(animal.x, animal.y)) continue;
+  // is centroid inside viewport?
+  if (!this.viewport.contains(animal.x, animal.y)) continue;
 
-      // convert world coords -> screen coords
-      const relX = (animal.x - this.viewport.x) / this.viewport.width;
-      const relY = (animal.y - this.viewport.y) / this.viewport.height;
-      const screenX = Math.round(relX * this.canvas.width);
-      const screenY = Math.round(relY * this.canvas.height);
+  // convert world coords -> screen coords (account for scaling)
+  const relX = (animal.x - this.viewport.x) / this.viewport.width;
+  const relY = (animal.y - this.viewport.y) / this.viewport.height;
+  const screenX = Math.round(relX * this.canvas.width);
+  const screenY = Math.round(relY * this.canvas.height);
       const screenRadius = Math.max(
         8,
         Math.round(
@@ -206,7 +195,8 @@ export class SceneRenderer {
   }
 
   moveCamera(dx: number, dy: number) {
-    this.cameraX = Math.min(this.maxX, Math.max(0, this.cameraX + dx));
-    this.cameraY = Math.min(this.maxY, Math.max(0, this.cameraY + dy));
+    // move the viewport in world pixels
+    if (!this.viewport) return;
+    this.viewport.pan(dx, dy);
   }
 }

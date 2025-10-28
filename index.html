@@ -14,13 +14,23 @@
   <body>
     <div id="viewport">
       <div id="camera-frame">
-        <!-- Main rendering surface -->
-        <canvas id="game" width="1024" height="768"></canvas>
+        <div class="camera-body-inner">
+          <!-- Main rendering surface -->
+          <canvas id="game" width="1024" height="768"></canvas>
 
-        <!-- UI elements -->
-        <div id="ui">
-          <select id="sceneSelect"></select>
-          <button id="shutter" title="Take Photo">📸</button>
+          <!-- viewfinder overlay (visual only) -->
+          <div class="viewfinder" aria-hidden="true">
+            <div class="lens"></div>
+          </div>
+        </div>
+
+        <!-- Side HUD on the camera body: objective + controls -->
+        <div id="camera-hud" aria-hidden="false">
+          <div id="objective" aria-hidden="false">📍</div>
+          <div id="ui">
+            <select id="sceneSelect"></select>
+            <button id="shutter" title="Take Photo">📸</button>
+          </div>
         </div>
       </div>
     </div>
