@@ -12,6 +12,7 @@ export class SceneRenderer {
     flashAlpha = 0;
     flashFadeRate = 0.06;
     flashActive = false;
+    suppressCelebration = false;
     objectiveColors = {};
     currentObjective;
     constructor(canvas) {
@@ -85,13 +86,15 @@ export class SceneRenderer {
             ctx.restore();
         }
         // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
-        // celebration overlay
+        // celebration overlay (can be suppressed while polaroid is shown)
         const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-        if (this.scene.allFound(objectiveAnimals)) {
+        if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
             this.drawCelebration();
         }
     }
     triggerFlash() {
+        console.log("[renderer] triggerFlash");
+        // longer flash for visual feedback
         this.flashAlpha = 1;
         this.flashActive = true;
     }

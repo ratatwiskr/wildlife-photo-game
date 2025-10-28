@@ -143,33 +143,59 @@ async function init() {
     if (renderer.viewport) {
       cameraCtrl = new CameraController(scene, renderer.viewport as any);
     }
-    shutter.addEventListener("click", () => {
+    shutter.addEventListener("click", async () => {
       console.log('[main] shutter pressed', { lastTapWorld });
-      if (cameraCtrl) {
-        const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
-        const res = cameraCtrl.attemptCapture(...(tap as any));
-        // always show flash for feedback
+      if (!cameraCtrl) {
         renderer.triggerFlash();
-        if (res && res.polaroid) {
-          console.log('[main] captured', res.name);
-          // wait a short moment so flash is visible before showing polaroid
-          setTimeout(() => {
-            pausedForPolaroid = true;
-            polaroidUi.show(res.polaroid as HTMLCanvasElement);
-            polaroidUi['container'].addEventListener('click', () => {
-              pausedForPolaroid = false;
-              polaroidUi.hide();
-            }, { once: true });
-          }, 320);
+        return;
+      }
 
-          const objEl = document.getElementById("objective");
-          if (objEl) {
-            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-            if (scene.allFound(objectiveAnimals)) objEl.textContent = "🎉";
-          }
-        }
-      } else {
+      // Log objectives and status
+      const objectives = scene.definition.objectives || [];
+      console.log('[main] objectives', objectives.map(o => ({ emoji: o.emoji || o.title, tag: o.tag, found: scene.getAnimalsForObjective(o).filter(a => a.found).length })));
+
+      // pick next unfound target for current objective
+      const obj = scene.definition.objectives?.[0];
+      const animals = obj ? scene.getAnimalsForObjective(obj) : scene.definition.animals;
+      const target = animals.find(a => !a.found);
+      if (!target) {
+        console.log('[main] no target remains');
         renderer.triggerFlash();
+        return;
+      }
+
+  // If target is not in view, ask controller to nudge slowly first (await completion)
+  const nudged = await cameraCtrl.nudgeToTarget(target, 900);
+  if (nudged) console.log('[main] nudge completed before capture');
+
+      // Now attempt capture using lastTapWorld if available
+      const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
+      const res = cameraCtrl.attemptCapture(...(tap as any));
+
+      // show flash immediately
+      renderer.triggerFlash();
+
+      if (res && res.polaroid) {
+        console.log('[main] captured', res.name);
+        // suppress celebration until after polaroid is dismissed
+        renderer.suppressCelebration = true;
+        // wait 1s so flash is visible
+        setTimeout(() => {
+          pausedForPolaroid = true;
+          polaroidUi.show(res.polaroid as HTMLCanvasElement);
+          polaroidUi['container'].addEventListener('click', () => {
+            pausedForPolaroid = false;
+            polaroidUi.hide();
+            // un-suppress celebration so renderer may show it
+            renderer.suppressCelebration = false;
+            // update emoji-only HUD when objective completed
+            const objEl = document.getElementById("objective");
+            if (objEl) {
+              const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+              if (scene.allFound(objectiveAnimals)) objEl.textContent = "🎉";
+            }
+          }, { once: true });
+        }, 1000);
       }
     });
 
@@ -222,37 +248,8 @@ function onCanvasClick(e: MouseEvent) {
   )
     return;
 
-  // cache an offscreen canvas on the scene instance for mask sampling to avoid
-  // recreating it each click
-  // @ts-ignore - allow attaching a private helper in this prototype for perf
-  if (!(scene as any)._maskBuffer) {
-    const tmp = document.createElement("canvas");
-    tmp.width = scene.mask.width;
-    tmp.height = scene.mask.height;
-    // hint the browser that we'll read pixels frequently
-    const tctx = tmp.getContext("2d", { willReadFrequently: true });
-    if (tctx) tctx.drawImage(scene.mask, 0, 0);
-    (scene as any)._maskBuffer = tmp;
-  }
-  const maskBuf: HTMLCanvasElement = (scene as any)._maskBuffer;
-  const tctx = maskBuf.getContext("2d", { willReadFrequently: true });
-  if (!tctx) return;
-
-  const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
-  const hex = Scene.rgbToHex(p[0], p[1], p[2]);
-  const foundName = scene.markFoundByColor(hex);
-  if (foundName) {
-    console.log("Found", foundName);
-    renderer.triggerFlash();
-    // update HUD (show celebration when objective completed)
-    const objEl = document.getElementById("objective");
-    if (objEl) {
-      const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-      if (scene.allFound(objectiveAnimals)) {
-        objEl.textContent = "🎉"; // party popper if all found
-      }
-    }
-  }
+  // don't auto-sample or mark found on canvas clicks; shutter triggers capture only
+  // lastTapWorld recorded above will be used by the shutter if provided
 }
 
 function loop(ts: number) {

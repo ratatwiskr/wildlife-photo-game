@@ -12,6 +12,40 @@ export class CameraController {
         this.cooldown = new Cooldown(cooldownMs);
     }
     /**
+     * Animate a slow nudge toward the next target and resolve when complete.
+     * Returns true if a nudge was performed, false if target already in view.
+     */
+    nudgeToTarget(target, duration = 900) {
+        return new Promise((resolve) => {
+            if (this.aimAssist.isAnimalInView(this.viewport, target)) {
+                console.log('[camera] target already in view, no nudge');
+                resolve(false);
+                return;
+            }
+            const nudge = this.aimAssist.computeNudge(this.viewport, target);
+            console.log('[camera] starting slow nudge', { nudge, duration });
+            const startX = this.viewport.x;
+            const startY = this.viewport.y;
+            const endX = startX + nudge.dx;
+            const endY = startY + nudge.dy;
+            const start = performance.now();
+            const self = this;
+            function step(now) {
+                const t = Math.min(1, (now - start) / duration);
+                const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                self.viewport.x = startX + (endX - startX) * ease;
+                self.viewport.y = startY + (endY - startY) * ease;
+                if (t < 1)
+                    requestAnimationFrame(step);
+                else {
+                    console.log('[camera] slow nudge complete');
+                    resolve(true);
+                }
+            }
+            requestAnimationFrame(step);
+        });
+    }
+    /**
      * Triggered when shutter button is pressed
      */
     /**
@@ -19,20 +53,19 @@ export class CameraController {
      * { name, imageCanvas } where imageCanvas is a cutout polaroid-like canvas.
      */
     attemptCapture(tapWorldX, tapWorldY) {
-        if (this.cooldown.isActive())
+        console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
+        if (this.cooldown.isActive()) {
+            console.log("[camera] cooldown active");
             return null;
+        }
         const obj = (this.scene.definition.objectives || [])[0];
         const animals = obj ? this.scene.getAnimalsForObjective(obj) : this.scene.definition.animals;
         const target = animals.find((a) => !a.found);
         if (!target)
             return null;
-        // If not in view, nudge viewport toward target
+        // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
         if (!this.aimAssist.isAnimalInView(this.viewport, target)) {
-            const nudge = this.aimAssist.computeNudge(this.viewport, target);
-            this.viewport.x += nudge.dx;
-            this.viewport.y += nudge.dy;
-            // don't capture immediately, require second press when centered
-            this.cooldown.trigger();
+            console.log('[camera] target not in view; require nudge before capture');
             return null;
         }
         // sample at tap coords if provided, otherwise use viewport center
@@ -43,16 +76,24 @@ export class CameraController {
             tmp.width = this.scene.mask.width;
             tmp.height = this.scene.mask.height;
             const tctx = tmp.getContext('2d', { willReadFrequently: true });
-            if (tctx)
-                tctx.drawImage(this.scene.mask, 0, 0);
-            const p = tctx?.getImageData(sampleX, sampleY, 1, 1).data;
+            if (!tctx) {
+                console.log('[camera] no 2d context for mask');
+                this.cooldown.trigger();
+                return null;
+            }
+            tctx.drawImage(this.scene.mask, 0, 0);
+            const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
+            const p = imgData?.data;
             if (!p) {
+                console.log("[camera] no pixel data at sample");
                 this.cooldown.trigger();
                 return null;
             }
             const hex = this.scene.constructor.rgbToHex(p[0], p[1], p[2]);
+            console.log("[camera] sampled hex", hex);
             const foundName = this.scene.markFoundByColor(hex);
             if (!foundName) {
+                console.log("[camera] nothing found for hex", hex);
                 this.cooldown.trigger();
                 return null;
             }
@@ -82,6 +123,7 @@ export class CameraController {
             return { name: foundName, polaroid: pol };
         }
         catch (e) {
+            console.error('[camera] capture failed', e);
             this.cooldown.trigger();
             return null;
         }

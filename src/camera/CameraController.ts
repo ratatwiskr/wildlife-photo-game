@@ -16,6 +16,42 @@ export class CameraController {
   }
 
   /**
+   * Animate a slow nudge toward the next target and resolve when complete.
+   * Returns true if a nudge was performed, false if target already in view.
+   */
+  nudgeToTarget(target: any, duration = 900): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (this.aimAssist.isAnimalInView(this.viewport as unknown as Viewport, target)) {
+        console.log('[camera] target already in view, no nudge');
+        resolve(false);
+        return;
+      }
+      const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
+      console.log('[camera] starting slow nudge', { nudge, duration });
+      const startX = this.viewport.x;
+      const startY = this.viewport.y;
+      const endX = startX + nudge.dx;
+      const endY = startY + nudge.dy;
+      const start = performance.now();
+      const self = this;
+
+      function step(now: number) {
+        const t = Math.min(1, (now - start) / duration);
+        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        self.viewport.x = startX + (endX - startX) * ease;
+        self.viewport.y = startY + (endY - startY) * ease;
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          console.log('[camera] slow nudge complete');
+          resolve(true);
+        }
+      }
+
+      requestAnimationFrame(step);
+    });
+  }
+
+  /**
    * Triggered when shutter button is pressed
    */
   /**
@@ -34,39 +70,9 @@ export class CameraController {
     const target = animals.find((a) => !a.found);
     if (!target) return null;
 
-    // If not in view, animate a nudge toward target and auto-capture after
+    // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
     if (!this.aimAssist.isAnimalInView(this.viewport as unknown as Viewport, target)) {
-      const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
-      console.log("[camera] starting animated nudge", nudge);
-      // animate over ~300ms
-      const duration = 300;
-      const startX = this.viewport.x;
-      const startY = this.viewport.y;
-      const endX = startX + nudge.dx;
-      const endY = startY + nudge.dy;
-      const start = performance.now();
-      const self = this;
-      let cancelled = false;
-
-      function step(now: number) {
-        const t = Math.min(1, (now - start) / duration);
-        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // easeInOutQuad-ish
-        self.viewport.x = startX + (endX - startX) * ease;
-        self.viewport.y = startY + (endY - startY) * ease;
-        if (t < 1 && !cancelled) {
-          requestAnimationFrame(step);
-        } else if (!cancelled) {
-          console.log('[camera] nudge complete, auto-capturing');
-          // after animation, attempt capture again (once)
-          // set a short cooldown prevention guard to avoid loops
-          self.cooldown.trigger();
-          // attempt capture but avoid re-entering animation path by passing undefined tap coords
-          const res = self.attemptCapture();
-          // res is handled by caller (renderer/main) — we just return here
-        }
-      }
-
-      requestAnimationFrame(step);
+      console.log('[camera] target not in view; require nudge before capture');
       return null;
     }
 

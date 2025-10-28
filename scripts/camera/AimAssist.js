@@ -1,6 +1,7 @@
 export class AimAssist {
     tolerance;
-    constructor(tolerancePx = 50) {
+    constructor(tolerancePx = 200) {
+        // increased default tolerance to make development easier during dev
         this.tolerance = tolerancePx;
     }
     /**
@@ -33,13 +34,6 @@ export class AimAssist {
         const top = ay - r;
         const bottom = ay + r;
         return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
-        // TODO
-        // return !(
-        //   animal.cx + animal.radius < viewport.x ||
-        //   animal.cx - animal.radius > viewport.x + viewport.width ||
-        //   animal.cy + animal.radius < viewport.y ||
-        //   animal.cy - animal.radius > viewport.y + viewport.height
-        // );
     }
     /**
      * Compute a nudge (dx, dy) in world pixels to move viewport toward animal.
