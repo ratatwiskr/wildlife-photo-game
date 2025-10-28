@@ -267,6 +267,12 @@ async function init() {
   // to provide feedback, but do not attempt capture or mark success.
   if (nudgeResult === 'skipped-too-far') {
     renderer.triggerFlash();
+    // short visual hint: add nudge-skip class to camera-frame for the duration of the animation
+    const frame = document.getElementById('camera-frame');
+    if (frame) {
+      frame.classList.add('nudge-skip');
+      setTimeout(() => frame.classList.remove('nudge-skip'), 800);
+    }
     return;
   }
 
