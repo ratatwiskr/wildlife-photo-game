@@ -27,6 +27,21 @@ body {
   align-items: center;
 }
 
+/* visual hint when an auto-nudge is skipped: short friendly shake + pulse */
+@keyframes nudgeSkipShake {
+  0% { transform: translateX(0) scale(1); }
+  20% { transform: translateX(-6px) scale(0.995); }
+  40% { transform: translateX(6px) scale(0.998); }
+  60% { transform: translateX(-4px) scale(0.999); }
+  80% { transform: translateX(4px) scale(1.0); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+#camera-frame.nudge-skip {
+  animation: nudgeSkipShake 700ms cubic-bezier(.2,.9,.3,1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45), 0 0 18px rgba(255,120,100,0.06) inset;
+}
+
 .camera-body-inner {
   flex: 1 1 auto;
   display: block;
