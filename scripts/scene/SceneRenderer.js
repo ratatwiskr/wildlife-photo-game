@@ -109,6 +109,21 @@ export class SceneRenderer {
                 const relY = (target.y - this.viewport.y) / this.viewport.height;
                 const screenX = Math.round(relX * this.canvas.width);
                 const screenY = Math.round(relY * this.canvas.height);
+                // If the renderer has access to an external tolerance (via camera controller),
+                // draw the capture radius in world pixels translated to screen pixels.
+                // Note: SceneRenderer doesn't directly own camera controller; main.ts can
+                // set a helper value on renderer.debugTolerance when toggling debug.
+                if (this.debugTolerance) {
+                    const tolWorld = this.debugTolerance;
+                    const screenRadius = Math.round(tolWorld * (this.canvas.width / this.viewport.width));
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(0,255,136,0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
                 ctx.save();
                 ctx.strokeStyle = "#00FF88";
                 ctx.lineWidth = 3;
