@@ -305,6 +305,21 @@ async function init() {
   requestAnimationFrame(loop);
 }
 
+// Toggle visual debug overlays with 'd' key: crosshair, mask, and transparent camera body
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'd') {
+    if (renderer) {
+      renderer.debug = !renderer.debug;
+      const frame = document.getElementById('camera-frame');
+      if (frame) {
+        if (renderer.debug) frame.classList.add('debug-mode');
+        else frame.classList.remove('debug-mode');
+      }
+      console.log('[main] debug mode', renderer.debug);
+    }
+  }
+});
+
 /** Draw fallback message if loading fails */
 function drawErrorMessage(text: string) {
   const ctx = canvas.getContext("2d");

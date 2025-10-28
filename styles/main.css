@@ -34,6 +34,16 @@ body {
   max-width: 78vw;
 }
 
+/* debug mode: make camera body mostly transparent so overlays are visible */
+#camera-frame.debug-mode {
+  background: linear-gradient(180deg, rgba(43,43,43,0.18) 0%, rgba(24,24,24,0.08) 100%);
+}
+
+#camera-frame.debug-mode .viewfinder .lens::before,
+#camera-frame.debug-mode .viewfinder .lens::after {
+  border-color: rgba(0,255,136,0.85);
+}
+
 canvas#game {
   display: block;
   width: 100%;

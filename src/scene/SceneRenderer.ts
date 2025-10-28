@@ -7,6 +7,8 @@ export class SceneRenderer {
   private readonly ctx: CanvasRenderingContext2D;
   private scene?: Scene;
   public viewport?: Viewport;
+  // when true, render overlay helpful for debugging: mask, crosshair, target
+  public debug = false;
 
   private cameraX = 0;
   private cameraY = 0;
@@ -106,9 +108,55 @@ export class SceneRenderer {
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.restore();
     }
+        // debug: draw mask overlay on top of the scene (but under crosshair)
+        if (this.debug && this.scene.mask) {
+          ctx.save();
+          ctx.globalAlpha = 0.45;
+          try {
+            ctx.drawImage(this.scene.mask, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+          } catch (err) {
+            // ignore draw failures in debug mode
+          }
+          ctx.restore();
+        }
 
   // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
 
+
+        // debug: draw crosshair / circle for the next unfound target
+        if (this.debug && this.scene) {
+          const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
+          const target = objectiveAnimals.find(a => !a.found && a.x != null && a.y != null);
+          if (target && target.x != null && target.y != null) {
+            const relX = (target.x - this.viewport.x) / this.viewport.width;
+            const relY = (target.y - this.viewport.y) / this.viewport.height;
+            const screenX = Math.round(relX * this.canvas.width);
+            const screenY = Math.round(relY * this.canvas.height);
+
+            ctx.save();
+            ctx.strokeStyle = "#00FF88";
+            ctx.lineWidth = 3;
+            // crosshair lines
+            ctx.beginPath();
+            ctx.moveTo(screenX - 20, screenY);
+            ctx.lineTo(screenX + 20, screenY);
+            ctx.moveTo(screenX, screenY - 20);
+            ctx.lineTo(screenX, screenY + 20);
+            ctx.stroke();
+            // target circle
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, 14, 0, Math.PI * 2);
+            ctx.stroke();
+            // label
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.font = "14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillRect(screenX - 40, screenY + 18, 80, 20);
+            ctx.fillStyle = "#fff";
+            ctx.fillText(target.name || "target", screenX, screenY + 33);
+            ctx.restore();
+          }
+        }
     // celebration overlay (can be suppressed while polaroid is shown)
   const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
   if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
