@@ -135,6 +135,11 @@ async function init() {
                 let m;
                 while ((m = re.exec(text))) {
                     const href = m[1];
+                    // skip any entries inside a `template/` directory
+                    if (/\/template\//i.test(href) || /^template\//i.test(href)) {
+                        console.debug('[main] skipping template folder entry', href);
+                        continue;
+                    }
                     const base = href.replace(/\.json$/, '').replace(/.*\//, '');
                     names.add(base);
                 }
@@ -245,7 +250,8 @@ async function init() {
                 return;
             }
             // If target is not in view, ask controller to nudge slowly first (await completion)
-            const nudged = await cameraCtrl.nudgeToTarget(target, 900);
+            // use a longer duration for a gentle slow nudge suitable for children
+            const nudged = await cameraCtrl.nudgeToTarget(target, 2400);
             if (nudged)
                 console.log('[main] nudge completed before capture');
             // Now attempt capture using lastTapWorld if available
@@ -303,6 +309,15 @@ window.addEventListener('keydown', (e) => {
                     frame.classList.add('debug-mode');
                 else
                     frame.classList.remove('debug-mode');
+            }
+            // if we have a camera controller, expose its aim tolerance for rendering
+            if (cameraCtrl && renderer.debug) {
+                const tol = cameraCtrl.getAimTolerance?.();
+                if (tol)
+                    renderer.debugTolerance = tol;
+            }
+            else {
+                renderer.debugTolerance = undefined;
             }
             console.log('[main] debug mode', renderer.debug);
         }

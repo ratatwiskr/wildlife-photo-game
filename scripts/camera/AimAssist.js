@@ -4,6 +4,10 @@ export class AimAssist {
         // increased default tolerance to make development easier during dev
         this.tolerance = tolerancePx;
     }
+    // expose tolerance for debug visuals
+    getTolerance() {
+        return this.tolerance;
+    }
     /**
      * Returns {dx, dy} to nudge the viewport toward animal center
      * If already centered within tolerance, returns {dx:0, dy:0}

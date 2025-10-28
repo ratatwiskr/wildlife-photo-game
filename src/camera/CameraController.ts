@@ -15,26 +15,36 @@ export class CameraController {
     this.cooldown = new Cooldown(cooldownMs);
   }
 
+  // expose aimAssist tolerance for debug rendering
+  public getAimTolerance(): number {
+    return this.aimAssist.getTolerance();
+  }
+
   /**
    * Animate a slow nudge toward the next target and resolve when complete.
    * Returns true if a nudge was performed, false if target already in view.
    */
   nudgeToTarget(target: any, duration = 900): Promise<boolean> {
     return new Promise((resolve) => {
-      // compute how much to nudge the viewport to center the animal
-      const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
-      // if computeNudge says no movement needed, resolve false
-      if ((nudge.dx === 0 && nudge.dy === 0)) {
-        console.log('[camera] nudge not needed (already centered within tolerance)');
+      // compute full delta required to center the animal in the viewport
+      const centerX = this.viewport.x + this.viewport.width / 2;
+      const centerY = this.viewport.y + this.viewport.height / 2;
+      const deltaX = (target.x ?? centerX) - centerX;
+      const deltaY = (target.y ?? centerY) - centerY;
+      // if animal is already within aim tolerance, do nothing
+      const tol = this.aimAssist.getTolerance();
+      if (Math.abs(deltaX) <= tol && Math.abs(deltaY) <= tol) {
+        console.log('[camera] nudge not needed (already within tolerance)');
         resolve(false);
         return;
       }
 
-      console.log('[camera] starting slow nudge', { nudge, duration });
+      console.log('[camera] starting slow nudge to center', { deltaX, deltaY, duration, tol });
       const startX = this.viewport.x;
       const startY = this.viewport.y;
-      const endX = startX + nudge.dx;
-      const endY = startY + nudge.dy;
+      // move by full delta so the animal becomes centered
+      const endX = startX + deltaX;
+      const endY = startY + deltaY;
       const start = performance.now();
 
       const step = (now: number) => {
