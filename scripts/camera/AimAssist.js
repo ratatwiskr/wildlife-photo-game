@@ -1,6 +1,7 @@
 export class AimAssist {
     tolerance;
-    constructor(tolerancePx = 50) {
+    constructor(tolerancePx = 200) {
+        // increased default tolerance to make development easier during dev
         this.tolerance = tolerancePx;
     }
     /**
@@ -22,13 +23,31 @@ export class AimAssist {
      * Returns true if any part of the animal is visible in viewport
      */
     isAnimalInView(viewport, animal) {
-        return true;
-        // TODO
-        // return !(
-        //   animal.cx + animal.radius < viewport.x ||
-        //   animal.cx - animal.radius > viewport.x + viewport.width ||
-        //   animal.cy + animal.radius < viewport.y ||
-        //   animal.cy - animal.radius > viewport.y + viewport.height
-        // );
+        if (animal.x == null || animal.y == null || animal.radius == null)
+            return false;
+        const ax = animal.x;
+        const ay = animal.y;
+        const r = animal.radius;
+        // check if bounding box of animal intersects viewport
+        const left = ax - r;
+        const right = ax + r;
+        const top = ay - r;
+        const bottom = ay + r;
+        return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
+    }
+    /**
+     * Compute a nudge (dx, dy) in world pixels to move viewport toward animal.
+     * If animal is within tolerance of center, returns {dx:0, dy:0}.
+     */
+    computeNudge(viewport, animal) {
+        if (animal.x == null || animal.y == null)
+            return { dx: 0, dy: 0 };
+        const centerX = viewport.x + viewport.width / 2;
+        const centerY = viewport.y + viewport.height / 2;
+        const deltaX = animal.x - centerX;
+        const deltaY = animal.y - centerY;
+        const dx = Math.abs(deltaX) <= this.tolerance ? 0 : deltaX * 0.5;
+        const dy = Math.abs(deltaY) <= this.tolerance ? 0 : deltaY * 0.5;
+        return { dx, dy };
     }
 }

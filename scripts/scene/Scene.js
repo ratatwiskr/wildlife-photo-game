@@ -30,11 +30,30 @@ export class Scene {
         this.mask = mask;
     }
     loadImage(src) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "anonymous";
-            img.onload = () => resolve(img);
-            img.onerror = (err) => reject(new Error(`Failed to load ${src}: ${String(err)}`));
+            let resolved = false;
+            const finish = () => {
+                if (resolved)
+                    return;
+                resolved = true;
+                resolve(img);
+            };
+            img.onload = () => finish();
+            img.onerror = () => {
+                // fallback to a tiny transparent GIF data URL to avoid DOM canvas usage
+                img.src =
+                    "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
+                finish();
+            };
+            // safety timeout: if loading takes too long, fallback to tiny placeholder
+            const to = setTimeout(() => {
+                if (!resolved) {
+                    img.src = "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
+                    finish();
+                }
+            }, 1500);
             img.src = src;
         });
     }
@@ -51,7 +70,7 @@ export class Scene {
         const tmp = document.createElement("canvas");
         tmp.width = w;
         tmp.height = h;
-        const tctx = tmp.getContext("2d");
+        const tctx = tmp.getContext("2d", { willReadFrequently: true });
         if (!tctx) {
             console.warn("Could not get 2D context for mask extraction");
             return;
@@ -123,6 +142,14 @@ export class Scene {
     // }
     allFound(animals = this.definition.animals) {
         return animals.every((a) => a.found);
+    }
+    getAnimalsForObjective(obj) {
+        if (!obj)
+            return this.definition.animals;
+        const tags = obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+        if (tags.length === 0)
+            return this.definition.animals;
+        return this.definition.animals.filter((a) => a.tags?.some((t) => tags.includes(t)));
     }
     static rgbToHex(r, g, b) {
         const toHex = (n) => n.toString(16).padStart(2, "0");

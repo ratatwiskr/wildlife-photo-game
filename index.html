@@ -26,6 +26,9 @@
 
         <!-- Side HUD on the camera body: objective + controls -->
         <div id="camera-hud" aria-hidden="false">
+          <div id="hud-top">
+            <button id="back" title="Back" aria-label="Back">🔁</button>
+          </div>
           <div id="objective" aria-hidden="false">📍</div>
           <div id="ui">
             <select id="sceneSelect"></select>
@@ -33,6 +36,12 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Fullscreen scene picker (draft) -->
+    <div id="scenePicker" style="display:none;position:fixed;inset:0;background:#222;color:#fff;padding:18px;overflow:auto">
+      <h2 style="margin-top:0">Select a scene</h2>
+      <div id="sceneList" class="scene-grid"></div>
     </div>
 
     <script type="module" src="./scripts/main.js"></script>

@@ -12,6 +12,7 @@ export class SceneRenderer {
     flashAlpha = 0;
     flashFadeRate = 0.06;
     flashActive = false;
+    suppressCelebration = false;
     objectiveColors = {};
     currentObjective;
     constructor(canvas) {
@@ -37,7 +38,9 @@ export class SceneRenderer {
         this.objectiveColors = {};
         if (scene.definition.objectives) {
             for (const o of scene.definition.objectives) {
-                this.objectiveColors[o.tag] = this.randomBrightColor();
+                const tags = o.tags?.length ? o.tags : o.tag ? [o.tag] : [];
+                for (const t of tags)
+                    this.objectiveColors[t] = this.randomBrightColor();
             }
         }
         // compute scrollable bounds
@@ -83,12 +86,15 @@ export class SceneRenderer {
             ctx.restore();
         }
         // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
-        // celebration overlay
-        if (this.scene.allFound(this.scene.definition.animals)) {
+        // celebration overlay (can be suppressed while polaroid is shown)
+        const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
+        if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
             this.drawCelebration();
         }
     }
     triggerFlash() {
+        console.log("[renderer] triggerFlash");
+        // longer flash for visual feedback
         this.flashAlpha = 1;
         this.flashActive = true;
     }
@@ -101,15 +107,15 @@ export class SceneRenderer {
                 continue;
             if (animal.x == null || animal.y == null)
                 continue;
-            // is centroid inside viewport?
-            if (!this.viewport.contains(animal.x, animal.y))
-                continue;
             // convert world coords -> screen coords (account for scaling)
             const relX = (animal.x - this.viewport.x) / this.viewport.width;
             const relY = (animal.y - this.viewport.y) / this.viewport.height;
             const screenX = Math.round(relX * this.canvas.width);
             const screenY = Math.round(relY * this.canvas.height);
             const screenRadius = Math.max(8, Math.round((animal.radius ?? 20) * (this.canvas.width / this.viewport.width)));
+            // if the circle would be fully off-screen, skip drawing
+            if (screenX + screenRadius < 0 || screenX - screenRadius > this.canvas.width || screenY + screenRadius < 0 || screenY - screenRadius > this.canvas.height)
+                continue;
             // color by objective tag (first tag)
             const tag = animal.tags?.[0] ?? "default";
             const color = this.objectiveColors[tag] ?? "#ff0";
@@ -133,14 +139,13 @@ export class SceneRenderer {
     drawCelebration() {
         const ctx = this.ctx;
         ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.fillStyle = "white";
-        ctx.font = "bold 44px sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.font = "bold 28px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const foundCount = this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
-        ctx.fillText(`🎉 ${foundCount} photographed! 🎉`, this.canvas.width / 2, this.canvas.height / 2);
+        // subtle celebration text near top
+        ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
         ctx.restore();
     }
     randomBrightColor() {

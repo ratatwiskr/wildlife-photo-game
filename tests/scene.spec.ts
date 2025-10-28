@@ -10,7 +10,11 @@ describe("Scene", () => {
     ],
   };
 
-  const scene = new Scene(testDefinition);
+  let scene: Scene;
+
+  beforeEach(() => {
+    scene = new Scene(testDefinition);
+  });
 
   test("loads images correctly", async () => {
     // Assuming loadImages should load two images
