@@ -15,7 +15,9 @@ export interface Animal {
 
 export interface Objective {
   title: string;
-  tag: string;
+  // allow either single tag (legacy) or tags array in scene JSON
+  tag?: string;
+  tags?: string[];
   emoji?: string;
 }
 
@@ -65,12 +67,32 @@ export class Scene {
   }
 
   private loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = (err) =>
-        reject(new Error(`Failed to load ${src}: ${String(err)}`));
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve(img);
+      };
+
+      img.onload = () => finish();
+      img.onerror = () => {
+        // fallback to a tiny transparent GIF data URL to avoid DOM canvas usage
+        img.src =
+          "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
+        finish();
+      };
+
+      // safety timeout: if loading takes too long, fallback to tiny placeholder
+      const to = setTimeout(() => {
+        if (!resolved) {
+          img.src = "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
+          finish();
+        }
+      }, 1500);
+
       img.src = src;
     });
   }
@@ -184,6 +206,13 @@ export class Scene {
 
   allFound(animals = this.definition.animals): boolean {
     return animals.every((a) => a.found);
+  }
+
+  getAnimalsForObjective(obj?: Objective) {
+    if (!obj) return this.definition.animals;
+    const tags = obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+    if (tags.length === 0) return this.definition.animals;
+    return this.definition.animals.filter((a) => a.tags?.some((t) => tags.includes(t)));
   }
 
   static rgbToHex(r: number, g: number, b: number): string {

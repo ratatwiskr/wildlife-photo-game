@@ -22,7 +22,17 @@ export class AimAssist {
      * Returns true if any part of the animal is visible in viewport
      */
     isAnimalInView(viewport, animal) {
-        return true;
+        if (animal.x == null || animal.y == null || animal.radius == null)
+            return false;
+        const ax = animal.x;
+        const ay = animal.y;
+        const r = animal.radius;
+        // check if bounding box of animal intersects viewport
+        const left = ax - r;
+        const right = ax + r;
+        const top = ay - r;
+        const bottom = ay + r;
+        return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
         // TODO
         // return !(
         //   animal.cx + animal.radius < viewport.x ||

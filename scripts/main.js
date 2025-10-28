@@ -2,6 +2,7 @@
 import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
 import { InputHandler } from "./input/InputHandler.js";
+import { CameraController } from "./camera/CameraController.js";
 import { basePath } from "./config.js";
 /**
  * main.ts -- viewport-based scene, mask centroid extraction,
@@ -12,6 +13,7 @@ const shutter = document.getElementById("shutter");
 const sceneSelect = document.getElementById("sceneSelect");
 let renderer;
 let scene;
+let cameraCtrl = null;
 let isLoaded = false;
 let lastTime = 0;
 let isDragging = false;
@@ -67,6 +69,53 @@ async function init() {
             objEl.textContent = def.objectives[0].emoji || def.objectives[0].title || "📍";
         }
         isLoaded = true;
+        // hide the select now that a scene is loaded; keep shutter and objective visible
+        const sceneSelectEl = document.getElementById("sceneSelect");
+        if (sceneSelectEl)
+            sceneSelectEl.style.display = "none";
+        // setup back button to show a simple scene picker draft
+        const backBtn = document.getElementById("back");
+        const scenePicker = document.getElementById("scenePicker");
+        const sceneList = document.getElementById("sceneList");
+        if (backBtn && scenePicker && sceneList) {
+            backBtn.addEventListener("click", () => {
+                const vp = document.getElementById("viewport");
+                // show full-screen picker draft and hide viewport
+                if (scenePicker.style.display === "block") {
+                    scenePicker.style.display = "none";
+                    if (vp)
+                        vp.style.display = "inline-block";
+                    return;
+                }
+                scenePicker.style.display = "block";
+                if (vp)
+                    vp.style.display = "none";
+                sceneList.innerHTML = "";
+                // populate simple preview list (we only have jungle_adventure currently)
+                const s = document.createElement("div");
+                s.style.margin = "8px 0";
+                const thumb = document.createElement("img");
+                thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
+                thumb.style.maxWidth = "240px";
+                thumb.style.display = "block";
+                const label = document.createElement("div");
+                label.textContent = "jungle_adventure";
+                s.appendChild(thumb);
+                s.appendChild(label);
+                sceneList.appendChild(s);
+                // add a close button to return
+                const close = document.createElement("button");
+                close.textContent = "Close";
+                close.style.display = "block";
+                close.style.marginTop = "12px";
+                close.addEventListener("click", () => {
+                    scenePicker.style.display = "none";
+                    if (vp)
+                        vp.style.display = "inline-block";
+                });
+                sceneList.appendChild(close);
+            });
+        }
         // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
         new InputHandler(canvas, (dxScreen, dyScreen) => {
             if (!renderer.viewport)
@@ -77,7 +126,27 @@ async function init() {
             renderer.viewport.pan(-worldDx, -worldDy); // negative because dragging direction -> world movement
         });
         canvas.addEventListener("click", onCanvasClick);
-        shutter.addEventListener("click", () => renderer.triggerFlash());
+        // create camera controller wiring shutter + cooldown
+        if (renderer.viewport) {
+            cameraCtrl = new CameraController(scene, renderer.viewport);
+        }
+        shutter.addEventListener("click", () => {
+            if (cameraCtrl) {
+                const ok = cameraCtrl.attemptCapture();
+                if (ok) {
+                    renderer.triggerFlash();
+                    const objEl = document.getElementById("objective");
+                    if (objEl) {
+                        const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+                        if (scene.allFound(objectiveAnimals))
+                            objEl.textContent = "🎉";
+                    }
+                }
+            }
+            else {
+                renderer.triggerFlash();
+            }
+        });
         console.log("[main] scene ready", sceneName);
     }
     catch (err) {
@@ -102,12 +171,12 @@ function drawErrorMessage(text) {
 function onCanvasClick(e) {
     if (!isLoaded || !renderer || !renderer.viewport || !scene)
         return;
+    // get click in canvas backing pixels
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    // convert client (CSS) coordinates to canvas backing pixels
     const clickX = (e.clientX - rect.left) * dpr;
     const clickY = (e.clientY - rect.top) * dpr;
-    // convert to world coords using viewport -> world mapping
+    // map to world coordinates
     const vx = renderer.viewport.x;
     const vy = renderer.viewport.y;
     const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
@@ -117,20 +186,36 @@ function onCanvasClick(e) {
         worldX >= scene.mask.width ||
         worldY >= scene.mask.height)
         return;
-    // sample mask at world coords
-    const tmp = document.createElement("canvas");
-    tmp.width = scene.mask.width;
-    tmp.height = scene.mask.height;
-    const tctx = tmp.getContext("2d");
+    // cache an offscreen canvas on the scene instance for mask sampling to avoid
+    // recreating it each click
+    // @ts-ignore - allow attaching a private helper in this prototype for perf
+    if (!scene._maskBuffer) {
+        const tmp = document.createElement("canvas");
+        tmp.width = scene.mask.width;
+        tmp.height = scene.mask.height;
+        const tctx = tmp.getContext("2d");
+        if (tctx)
+            tctx.drawImage(scene.mask, 0, 0);
+        scene._maskBuffer = tmp;
+    }
+    const maskBuf = scene._maskBuffer;
+    const tctx = maskBuf.getContext("2d");
     if (!tctx)
         return;
-    tctx.drawImage(scene.mask, 0, 0);
     const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
     const hex = Scene.rgbToHex(p[0], p[1], p[2]);
-    const found = scene.markFoundByColor(hex);
-    if (found) {
-        console.log("Found", found);
+    const foundName = scene.markFoundByColor(hex);
+    if (foundName) {
+        console.log("Found", foundName);
         renderer.triggerFlash();
+        // update HUD (show celebration when objective completed)
+        const objEl = document.getElementById("objective");
+        if (objEl) {
+            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+            if (scene.allFound(objectiveAnimals)) {
+                objEl.textContent = "🎉"; // party popper if all found
+            }
+        }
     }
 }
 function loop(ts) {

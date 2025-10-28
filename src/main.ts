@@ -2,6 +2,8 @@
 import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
 import { InputHandler } from "./input/InputHandler.js";
+import { CameraController } from "./camera/CameraController.js";
+import { PolaroidUI } from "./ui/Polaroid.js";
 import { basePath } from "./config.js";
 
 /**
@@ -15,6 +17,9 @@ const sceneSelect = document.getElementById("sceneSelect") as HTMLSelectElement;
 
 let renderer: SceneRenderer;
 let scene: Scene;
+let cameraCtrl: CameraController | null = null;
+const polaroidUi = new PolaroidUI();
+let pausedForPolaroid = false;
 let isLoaded = false;
 let lastTime = 0;
 
@@ -69,7 +74,7 @@ async function init() {
     await scene.loadImages(); // load images
     scene.extractPositionsFromMask(); // compute centroids
 
-    renderer.setScene(scene);
+  renderer.setScene(scene);
     renderer.currentObjective = def.objectives?.[0];
     // update DOM HUD objective emoji/title
     const objEl = document.getElementById("objective");
@@ -78,7 +83,52 @@ async function init() {
     }
     isLoaded = true;
 
-    // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
+    // hide the select now that a scene is loaded; keep shutter and objective visible
+    const sceneSelectEl = document.getElementById("sceneSelect");
+    if (sceneSelectEl) sceneSelectEl.style.display = "none";
+
+    // setup back button to show a simple scene picker draft
+    const backBtn = document.getElementById("back");
+    const scenePicker = document.getElementById("scenePicker");
+    const sceneList = document.getElementById("sceneList");
+      if (backBtn && scenePicker && sceneList) {
+        backBtn.addEventListener("click", () => {
+          const vp = document.getElementById("viewport");
+          // show full-screen picker draft and hide viewport
+          if (scenePicker.style.display === "block") {
+            scenePicker.style.display = "none";
+            if (vp) vp.style.display = "inline-block";
+            return;
+          }
+          scenePicker.style.display = "block";
+          if (vp) vp.style.display = "none";
+          sceneList.innerHTML = "";
+          // populate simple preview list (we only have jungle_adventure currently)
+          const s = document.createElement("div");
+          s.style.margin = "8px 0";
+          const thumb = document.createElement("img");
+          thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
+          thumb.style.maxWidth = "240px";
+          thumb.style.display = "block";
+          const label = document.createElement("div");
+          label.textContent = "jungle_adventure";
+          s.appendChild(thumb);
+          s.appendChild(label);
+          sceneList.appendChild(s);
+          // add a close button to return
+          const close = document.createElement("button");
+          close.textContent = "Close";
+          close.style.display = "block";
+          close.style.marginTop = "12px";
+          close.addEventListener("click", () => {
+            scenePicker.style.display = "none";
+            if (vp) vp.style.display = "inline-block";
+          });
+          sceneList.appendChild(close);
+        });
+      }
+
+  // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
     new InputHandler(canvas, (dxScreen, dyScreen) => {
       if (!renderer.viewport) return;
       // world delta = (dx / canvas.width) * viewport.width
@@ -88,7 +138,32 @@ async function init() {
     });
 
     canvas.addEventListener("click", onCanvasClick);
-    shutter.addEventListener("click", () => renderer.triggerFlash());
+    // create camera controller wiring shutter + cooldown
+    if (renderer.viewport) {
+      cameraCtrl = new CameraController(scene, renderer.viewport as any);
+    }
+    shutter.addEventListener("click", () => {
+      if (cameraCtrl) {
+        const res = cameraCtrl.attemptCapture();
+        if (res && res.polaroid) {
+          // show polaroid and pause
+          pausedForPolaroid = true;
+          polaroidUi.show(res.polaroid);
+          polaroidUi['container'].addEventListener('click', () => {
+            pausedForPolaroid = false;
+            polaroidUi.hide();
+          }, { once: true });
+          renderer.triggerFlash();
+          const objEl = document.getElementById("objective");
+          if (objEl) {
+            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+            if (scene.allFound(objectiveAnimals)) objEl.textContent = "🎉";
+          }
+        }
+      } else {
+        renderer.triggerFlash();
+      }
+    });
 
     console.log("[main] scene ready", sceneName);
   } catch (err) {
@@ -115,13 +190,13 @@ function drawErrorMessage(text: string) {
 function onCanvasClick(e: MouseEvent) {
   if (!isLoaded || !renderer || !renderer.viewport || !scene) return;
 
+  // get click in canvas backing pixels
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  // convert client (CSS) coordinates to canvas backing pixels
   const clickX = (e.clientX - rect.left) * dpr;
   const clickY = (e.clientY - rect.top) * dpr;
 
-  // convert to world coords using viewport -> world mapping
+  // map to world coordinates
   const vx = renderer.viewport.x;
   const vy = renderer.viewport.y;
   const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
@@ -135,32 +210,45 @@ function onCanvasClick(e: MouseEvent) {
   )
     return;
 
-  // sample mask at world coords
-  const tmp = document.createElement("canvas");
-  tmp.width = scene.mask.width;
-  tmp.height = scene.mask.height;
-  const tctx = tmp.getContext("2d");
-  if (!tctx) return;
-  tctx.drawImage(scene.mask, 0, 0);
-  const p = tctx.getImageData(
-    Math.floor(worldX),
-    Math.floor(worldY),
-    1,
-    1
-  ).data;
-  const hex = Scene.rgbToHex(p[0], p[1], p[2]);
-  const found = scene.markFoundByColor(hex);
-  if (found) {
-    console.log("Found", found);
-    renderer.triggerFlash();
+  // cache an offscreen canvas on the scene instance for mask sampling to avoid
+  // recreating it each click
+  // @ts-ignore - allow attaching a private helper in this prototype for perf
+  if (!(scene as any)._maskBuffer) {
+    const tmp = document.createElement("canvas");
+    tmp.width = scene.mask.width;
+    tmp.height = scene.mask.height;
+    const tctx = tmp.getContext("2d");
+    if (tctx) tctx.drawImage(scene.mask, 0, 0);
+    (scene as any)._maskBuffer = tmp;
   }
+    const maskBuf: HTMLCanvasElement = (scene as any)._maskBuffer;
+    const tctx = maskBuf.getContext("2d");
+    if (!tctx) return;
+  
+    const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
+    const hex = Scene.rgbToHex(p[0], p[1], p[2]);
+    const foundName = scene.markFoundByColor(hex);
+    if (foundName) {
+      console.log("Found", foundName);
+      renderer.triggerFlash();
+      // update HUD (show celebration when objective completed)
+      const objEl = document.getElementById("objective");
+      if (objEl) {
+        const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+        if (scene.allFound(objectiveAnimals)) {
+          objEl.textContent = "🎉"; // party popper if all found
+        }
+      }
+    }
 }
 
 function loop(ts: number) {
   const dt = ts - lastTime;
   lastTime = ts;
-  renderer.update();
-  renderer.draw();
+  if (!pausedForPolaroid) {
+    renderer.update();
+    renderer.draw();
+  }
   requestAnimationFrame(loop);
 }
 

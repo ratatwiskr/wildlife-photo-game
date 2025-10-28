@@ -37,7 +37,9 @@ export class SceneRenderer {
         this.objectiveColors = {};
         if (scene.definition.objectives) {
             for (const o of scene.definition.objectives) {
-                this.objectiveColors[o.tag] = this.randomBrightColor();
+                const tags = o.tags?.length ? o.tags : o.tag ? [o.tag] : [];
+                for (const t of tags)
+                    this.objectiveColors[t] = this.randomBrightColor();
             }
         }
         // compute scrollable bounds
@@ -84,7 +86,8 @@ export class SceneRenderer {
         }
         // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
         // celebration overlay
-        if (this.scene.allFound(this.scene.definition.animals)) {
+        const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
+        if (this.scene.allFound(objectiveAnimals)) {
             this.drawCelebration();
         }
     }
