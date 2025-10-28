@@ -1,56 +1,61 @@
+// src/main.ts
 import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
+import { InputHandler } from "./input/InputHandler.js";
 import { basePath } from "./config.js";
-import { Viewport } from "./scene/Viewport.js";
 /**
- * main.ts
- * --------
- * Wildlife Photo Game main entry point.
- * Loads scene definitions from JSON and handles user input, camera flash,
- * and continuous rendering.
+ * main.ts -- viewport-based scene, mask centroid extraction,
+ * click -> mask sampling, and drag-to-pan (fixed viewport).
  */
 const canvas = document.getElementById("game");
-const shutterButton = document.getElementById("shutter");
+const shutter = document.getElementById("shutter");
 const sceneSelect = document.getElementById("sceneSelect");
 let renderer;
 let scene;
-let lastTime = 0;
 let isLoaded = false;
-const viewport = new Viewport(canvas.width, canvas.height);
-/** Initialize game */
+let lastTime = 0;
 async function init() {
+    if (!canvas)
+        throw new Error("Canvas #game not found");
+    if (!canvas || !shutter || !sceneSelect) {
+        console.error("Missing required DOM elements.");
+        return;
+    }
     renderer = new SceneRenderer(canvas);
     populateSceneSelect();
-    // TODO: right place?
-    renderer.setViewport(viewport);
-    // TODO: right place?
-    // inputHandler = new InputHandler(canvas, (dx) => {
-    //   viewport.x -= dx; // pan left/right
-    // });
     const params = new URLSearchParams(window.location.search);
     const sceneName = params.get("scene") || "jungle_adventure";
     try {
-        // ✅ Corrected path to include /assets/scenes/
-        const sceneDefUrl = `${basePath}/assets/scenes/${sceneName}.json`;
-        console.log(`[main] Loading scene definition: ${sceneDefUrl}`);
-        const response = await fetch(sceneDefUrl);
-        if (!response.ok)
-            throw new Error(`Failed to load ${sceneDefUrl}`);
-        const definition = await response.json();
-        scene = new Scene(definition);
-        await scene.loadImages();
+        const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+        console.log("[main] loading", defUrl);
+        const res = await fetch(defUrl);
+        if (!res.ok)
+            throw new Error(`Failed to load ${defUrl}`);
+        const def = await res.json();
+        scene = new Scene(def);
+        await scene.loadImages(); // load images
+        scene.extractPositionsFromMask(); // compute centroids
         renderer.setScene(scene);
-        renderer.currentObjective = definition.objectives?.[0];
+        renderer.currentObjective = def.objectives?.[0];
         isLoaded = true;
-        console.log(`[main] Scene loaded successfully: ${sceneName}`);
+        // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
+        new InputHandler(canvas, (dxScreen, dyScreen) => {
+            if (!renderer.viewport)
+                return;
+            // world delta = (dx / canvas.width) * viewport.width
+            const worldDx = (dxScreen / canvas.width) * renderer.viewport.width;
+            const worldDy = (dyScreen / canvas.height) * renderer.viewport.height;
+            renderer.viewport.pan(-worldDx, -worldDy); // negative because dragging direction -> world movement
+        });
+        canvas.addEventListener("click", onCanvasClick);
+        shutter.addEventListener("click", () => renderer.triggerFlash());
+        console.log("[main] scene ready", sceneName);
     }
     catch (err) {
         console.error("Scene load failed:", err);
         drawErrorMessage(`Could not load scene: ${sceneName}`);
         return;
     }
-    shutterButton.addEventListener("click", onShutter);
-    canvas.addEventListener("click", onCanvasClick);
     requestAnimationFrame(loop);
 }
 /** Draw fallback message if loading fails */
@@ -65,62 +70,59 @@ function drawErrorMessage(text) {
     ctx.textBaseline = "middle";
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 }
-/** Handle shutter click */
-function onShutter() {
-    if (!isLoaded)
-        return;
-    renderer.triggerFlash();
-}
-/** Handle player tapping or clicking the scene */
-function onCanvasClick(event) {
-    if (!scene.mask)
+function onCanvasClick(e) {
+    if (!isLoaded || !renderer || !renderer.viewport || !scene)
         return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((event.clientX - rect.left) / rect.width) * scene.mask.width);
-    const y = Math.floor(((event.clientY - rect.top) / rect.height) * scene.mask.height);
-    const temp = document.createElement("canvas");
-    temp.width = scene.mask.width;
-    temp.height = scene.mask.height;
-    const tempCtx = temp.getContext("2d");
-    if (!tempCtx)
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    // convert to world coords
+    const vx = renderer.viewport.x;
+    const vy = renderer.viewport.y;
+    const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
+    const worldY = vy + (clickY / canvas.height) * renderer.viewport.height;
+    if (worldX < 0 ||
+        worldY < 0 ||
+        worldX >= scene.mask.width ||
+        worldY >= scene.mask.height)
         return;
-    tempCtx.drawImage(scene.mask, 0, 0);
-    const pixel = tempCtx.getImageData(x, y, 1, 1).data;
-    const hex = Scene.rgbToHex(pixel[0], pixel[1], pixel[2]);
+    // sample mask at world coords
+    const tmp = document.createElement("canvas");
+    tmp.width = scene.mask.width;
+    tmp.height = scene.mask.height;
+    const tctx = tmp.getContext("2d");
+    if (!tctx)
+        return;
+    tctx.drawImage(scene.mask, 0, 0);
+    const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
+    const hex = Scene.rgbToHex(p[0], p[1], p[2]);
     const found = scene.markFoundByColor(hex);
     if (found) {
-        console.log(`📸 Found: ${found}`);
+        console.log("Found", found);
         renderer.triggerFlash();
     }
 }
-/** Animation + render loop */
-function loop(timestamp) {
-    const delta = timestamp - lastTime;
-    lastTime = timestamp;
+function loop(ts) {
+    const dt = ts - lastTime;
+    lastTime = ts;
     renderer.update();
     renderer.draw();
     requestAnimationFrame(loop);
 }
-/** Populate simple scene selector dropdown */
 function populateSceneSelect() {
-    const scenes = ["jungle_adventure", "savanna", "arctic", "jungle"]; // add more JSONs as you create them
-    for (const name of scenes) {
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        sceneSelect.appendChild(option);
+    const choices = ["jungle_adventure", "savanna", "arctic"];
+    for (const s of choices) {
+        const o = document.createElement("option");
+        o.value = s;
+        o.textContent = s;
+        sceneSelect.appendChild(o);
     }
     const current = new URLSearchParams(window.location.search).get("scene");
     if (current)
         sceneSelect.value = current;
     sceneSelect.addEventListener("change", () => {
-        const name = sceneSelect.value;
-        window.location.search = `?scene=${name}`;
+        const v = sceneSelect.value;
+        window.location.search = `?scene=${v}`;
     });
 }
-// call after drag updates
-// clamp(sceneWidth: number, sceneHeight: number) {
-//   this.x = Math.max(0, Math.min(this.x, sceneWidth - this.width));
-//   this.y = Math.max(0, Math.min(this.y, sceneHeight - this.height));
-// }
 init().catch(console.error);
