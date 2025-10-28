@@ -4,7 +4,7 @@ body {
   padding: 0;
   overflow: hidden;
   height: 100%;
-  background: #000;
+  background: #373737;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -26,7 +26,7 @@ canvas#game {
   display: block;
   width: 1024px;
   height: 768px;
-  background-color: #000;
+  background-color: #000000;
 }
 
 #ui {

@@ -14,6 +14,9 @@ let renderer;
 let scene;
 let isLoaded = false;
 let lastTime = 0;
+let isDragging = false;
+let lastX = 0;
+let lastY = 0;
 async function init() {
     if (!canvas)
         throw new Error("Canvas #game not found");
@@ -125,4 +128,23 @@ function populateSceneSelect() {
         window.location.search = `?scene=${v}`;
     });
 }
+canvas.addEventListener("pointerdown", (e) => {
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+    if (!isDragging || !scene || !renderer)
+        return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    renderer.moveCamera(-dx, -dy);
+});
+canvas.addEventListener("pointerup", (e) => {
+    isDragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+});
 init().catch(console.error);
