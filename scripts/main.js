@@ -83,16 +83,10 @@ async function init() {
         const backBtn = document.getElementById("back");
         const scenePicker = document.getElementById("scenePicker");
         const sceneList = document.getElementById("sceneList");
-        const stopConfBtn = document.getElementById('stopConfetti');
-        if (stopConfBtn) {
-            stopConfBtn.addEventListener('click', () => {
-                confetti.stop();
-                stopConfBtn.style.display = 'none';
-            });
-        }
         if (backBtn && scenePicker && sceneList) {
             backBtn.addEventListener("click", () => {
                 const vp = document.getElementById("viewport");
+                console.debug('[main] back pressed, toggling scene picker');
                 // show full-screen picker draft and hide viewport
                 if (scenePicker.style.display === "block") {
                     scenePicker.style.display = "none";
@@ -130,34 +124,93 @@ async function init() {
             });
         }
         // populate scene picker from manifest (assets/scenes/scene-manifest.json)
+        // Populate scene picker by scanning the scenes directory for .json files
         try {
-            const manifestRes = await fetch(`${basePath}/assets/scenes/scene-manifest.json`);
-            if (manifestRes.ok) {
-                const manifest = await manifestRes.json();
+            const dirRes = await fetch(`${basePath}/assets/scenes/`);
+            if (dirRes.ok) {
+                const text = await dirRes.text();
+                // find hrefs that end with .json
+                const re = /href\s*=\s*"([^"]+\.json)"/g;
+                const names = new Set();
+                let m;
+                while ((m = re.exec(text))) {
+                    const href = m[1];
+                    const base = href.replace(/\.json$/, '').replace(/.*\//, '');
+                    names.add(base);
+                }
+                const list = Array.from(names);
+                console.debug('[main] scanned scene directory, found', list);
                 const picker = document.getElementById('sceneList');
                 if (picker) {
                     picker.innerHTML = '';
-                    for (const name of manifest) {
-                        const box = document.createElement('div');
-                        const thumb = document.createElement('img');
-                        thumb.src = `${basePath}/assets/scenes/${name}.jpg`;
-                        thumb.alt = name;
-                        const label = document.createElement('div');
-                        label.textContent = name;
-                        label.style.marginTop = '6px';
-                        label.style.textAlign = 'center';
-                        box.appendChild(thumb);
-                        box.appendChild(label);
-                        box.addEventListener('click', () => {
-                            window.location.search = `?scene=${name}`;
-                        });
-                        picker.appendChild(box);
-                    }
+                    for (const name of list)
+                        createSceneCard(picker, name);
                 }
+            }
+            else {
+                console.warn('[main] directory scan failed', dirRes.status);
             }
         }
         catch (e) {
-            console.warn('[main] no scene manifest', e);
+            console.warn('[main] directory scan error', e);
+        }
+        // helper to create a card DOM node
+        function createSceneCard(picker, name) {
+            const card = document.createElement('div');
+            card.className = 'scene-card';
+            const title = document.createElement('div');
+            title.className = 'scene-title';
+            const pretty = name.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+            title.textContent = pretty;
+            const thumbWrap = document.createElement('div');
+            thumbWrap.className = 'thumb-wrap';
+            // try to fetch the scene json to get an explicit preview image path
+            (async () => {
+                try {
+                    const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
+                    if (jres.ok) {
+                        const def = await jres.json();
+                        const imgPath = def.image ? `${basePath}/assets/scenes/${def.image}` : `${basePath}/assets/scenes/${name}.jpg`;
+                        const thumb = document.createElement('img');
+                        thumb.src = imgPath;
+                        thumb.alt = name;
+                        thumb.className = 'scene-thumb blurred';
+                        thumb.onload = () => {
+                            thumbWrap.appendChild(thumb);
+                        };
+                        thumb.onerror = () => {
+                            console.debug('[main] thumbnail failed to load for', name, imgPath);
+                        };
+                    }
+                    else {
+                        console.debug('[main] scene json fetch failed for', name, jres.status);
+                    }
+                }
+                catch (e) {
+                    console.debug('[main] error fetching scene json for', name, e);
+                }
+                finally {
+                    // always append the card even if image failed; show placeholder if empty
+                    if (!thumbWrap.hasChildNodes()) {
+                        const ph = document.createElement('div');
+                        ph.style.height = '120px';
+                        ph.style.background = '#222';
+                        ph.style.display = 'flex';
+                        ph.style.alignItems = 'center';
+                        ph.style.justifyContent = 'center';
+                        ph.textContent = 'Preview';
+                        ph.style.color = '#666';
+                        thumbWrap.appendChild(ph);
+                    }
+                    card.appendChild(title);
+                    card.appendChild(thumbWrap);
+                    card.addEventListener('click', () => {
+                        globalThis.location.search = `?scene=${name}`;
+                    });
+                    console.debug('[main] created scene card', name);
+                    picker.appendChild(card);
+                }
+            })();
         }
         // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
         new InputHandler(canvas, (dxScreen, dyScreen) => {
@@ -221,10 +274,10 @@ async function init() {
                             // commented out victory sound
                             // const v = new Audio('/sounds/victory.mp3'); v.play().catch(()=>{});
                             confetti.burst(60);
-                            // start continuous subtle confetti
-                            confetti.startContinuous(4);
-                            if (stopConfBtn)
-                                stopConfBtn.style.display = 'inline-block';
+                            // start continuous subtle confetti for a short duration
+                            confetti.startContinuous(6);
+                            // stop after 2 seconds automatically
+                            setTimeout(() => confetti.stop(), 2000);
                         }
                     }, { once: true });
                 }, 1000);

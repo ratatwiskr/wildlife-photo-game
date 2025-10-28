@@ -126,25 +126,19 @@ export class SceneRenderer {
   private drawFoundOutlines() {
     if (!this.scene || !this.viewport) return;
     const ctx = this.ctx;
-
     for (const animal of this.scene.definition.animals) {
       if (!animal.found) continue;
       if (animal.x == null || animal.y == null) continue;
 
-  // is centroid inside viewport?
-  if (!this.viewport.contains(animal.x, animal.y)) continue;
+      // convert world coords -> screen coords (account for scaling)
+      const relX = (animal.x - this.viewport.x) / this.viewport.width;
+      const relY = (animal.y - this.viewport.y) / this.viewport.height;
+      const screenX = Math.round(relX * this.canvas.width);
+      const screenY = Math.round(relY * this.canvas.height);
+      const screenRadius = Math.max(8, Math.round((animal.radius ?? 20) * (this.canvas.width / this.viewport.width)));
 
-  // convert world coords -> screen coords (account for scaling)
-  const relX = (animal.x - this.viewport.x) / this.viewport.width;
-  const relY = (animal.y - this.viewport.y) / this.viewport.height;
-  const screenX = Math.round(relX * this.canvas.width);
-  const screenY = Math.round(relY * this.canvas.height);
-      const screenRadius = Math.max(
-        8,
-        Math.round(
-          (animal.radius ?? 20) * (this.canvas.width / this.viewport.width)
-        )
-      );
+      // if the circle would be fully off-screen, skip drawing
+      if (screenX + screenRadius < 0 || screenX - screenRadius > this.canvas.width || screenY + screenRadius < 0 || screenY - screenRadius > this.canvas.height) continue;
 
       // color by objective tag (first tag)
       const tag = animal.tags?.[0] ?? "default";
