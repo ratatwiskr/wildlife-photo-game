@@ -116,8 +116,10 @@ export class SceneRenderer {
   }
 
   triggerFlash() {
-    this.flashAlpha = 1;
-    this.flashActive = true;
+  console.log("[renderer] triggerFlash");
+  // longer flash for visual feedback
+  this.flashAlpha = 1;
+  this.flashActive = true;
   }
 
   private drawFoundOutlines() {

@@ -23,20 +23,50 @@ export class CameraController {
    * { name, imageCanvas } where imageCanvas is a cutout polaroid-like canvas.
    */
   attemptCapture(tapWorldX?: number, tapWorldY?: number): { name: string; polaroid?: HTMLCanvasElement } | null {
-    if (this.cooldown.isActive()) return null;
+  console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
+    if (this.cooldown.isActive()) {
+      console.log("[camera] cooldown active");
+      return null;
+    }
 
     const obj = (this.scene.definition.objectives || [])[0];
     const animals = obj ? this.scene.getAnimalsForObjective(obj) : this.scene.definition.animals;
     const target = animals.find((a) => !a.found);
     if (!target) return null;
 
-    // If not in view, nudge viewport toward target
+    // If not in view, animate a nudge toward target and auto-capture after
     if (!this.aimAssist.isAnimalInView(this.viewport as unknown as Viewport, target)) {
       const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
-      this.viewport.x += nudge.dx;
-      this.viewport.y += nudge.dy;
-      // don't capture immediately, require second press when centered
-      this.cooldown.trigger();
+      console.log("[camera] starting animated nudge", nudge);
+      // animate over ~300ms
+      const duration = 300;
+      const startX = this.viewport.x;
+      const startY = this.viewport.y;
+      const endX = startX + nudge.dx;
+      const endY = startY + nudge.dy;
+      const start = performance.now();
+      const self = this;
+      let cancelled = false;
+
+      function step(now: number) {
+        const t = Math.min(1, (now - start) / duration);
+        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // easeInOutQuad-ish
+        self.viewport.x = startX + (endX - startX) * ease;
+        self.viewport.y = startY + (endY - startY) * ease;
+        if (t < 1 && !cancelled) {
+          requestAnimationFrame(step);
+        } else if (!cancelled) {
+          console.log('[camera] nudge complete, auto-capturing');
+          // after animation, attempt capture again (once)
+          // set a short cooldown prevention guard to avoid loops
+          self.cooldown.trigger();
+          // attempt capture but avoid re-entering animation path by passing undefined tap coords
+          const res = self.attemptCapture();
+          // res is handled by caller (renderer/main) — we just return here
+        }
+      }
+
+      requestAnimationFrame(step);
       return null;
     }
 
@@ -48,16 +78,25 @@ export class CameraController {
   const tmp = document.createElement('canvas');
   tmp.width = this.scene.mask.width;
   tmp.height = this.scene.mask.height;
-  const tctx = tmp.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
-  if (tctx) tctx.drawImage(this.scene.mask, 0, 0);
-  const p = tctx?.getImageData(sampleX, sampleY, 1, 1).data;
+      const tctx = tmp.getContext('2d', { willReadFrequently: true });
+      if (!tctx) {
+        console.log('[camera] no 2d context for mask');
+        this.cooldown.trigger();
+        return null;
+      }
+      tctx.drawImage(this.scene.mask, 0, 0);
+      const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
+      const p = imgData?.data;
       if (!p) {
+        console.log("[camera] no pixel data at sample");
         this.cooldown.trigger();
         return null;
       }
       const hex = (this.scene.constructor as any).rgbToHex(p[0], p[1], p[2]);
+      console.log("[camera] sampled hex", hex);
       const foundName = this.scene.markFoundByColor(hex);
       if (!foundName) {
+        console.log("[camera] nothing found for hex", hex);
         this.cooldown.trigger();
         return null;
       }
@@ -89,6 +128,7 @@ export class CameraController {
   // return polaroid but consumer should show it after flash; we return it now
   return { name: foundName, polaroid: pol };
     } catch (e) {
+      console.error('[camera] capture failed', e);
       this.cooldown.trigger();
       return null;
     }

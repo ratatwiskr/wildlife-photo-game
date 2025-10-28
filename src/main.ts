@@ -26,6 +26,7 @@ let lastTime = 0;
 let isDragging = false;
 let lastX = 0;
 let lastY = 0;
+let lastTapWorld: { x: number; y: number } | null = null;
 
 async function init() {
   if (!canvas) throw new Error("Canvas #game not found");
@@ -137,23 +138,30 @@ async function init() {
       renderer.viewport.pan(-worldDx, -worldDy); // negative because dragging direction -> world movement
     });
 
-    canvas.addEventListener("click", onCanvasClick);
+  canvas.addEventListener("click", onCanvasClick);
     // create camera controller wiring shutter + cooldown
     if (renderer.viewport) {
       cameraCtrl = new CameraController(scene, renderer.viewport as any);
     }
     shutter.addEventListener("click", () => {
+      console.log('[main] shutter pressed', { lastTapWorld });
       if (cameraCtrl) {
-        const res = cameraCtrl.attemptCapture();
+        const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
+        const res = cameraCtrl.attemptCapture(...(tap as any));
+        // always show flash for feedback
+        renderer.triggerFlash();
         if (res && res.polaroid) {
-          // show polaroid and pause
-          pausedForPolaroid = true;
-          polaroidUi.show(res.polaroid);
-          polaroidUi['container'].addEventListener('click', () => {
-            pausedForPolaroid = false;
-            polaroidUi.hide();
-          }, { once: true });
-          renderer.triggerFlash();
+          console.log('[main] captured', res.name);
+          // wait a short moment so flash is visible before showing polaroid
+          setTimeout(() => {
+            pausedForPolaroid = true;
+            polaroidUi.show(res.polaroid as HTMLCanvasElement);
+            polaroidUi['container'].addEventListener('click', () => {
+              pausedForPolaroid = false;
+              polaroidUi.hide();
+            }, { once: true });
+          }, 320);
+
           const objEl = document.getElementById("objective");
           if (objEl) {
             const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
@@ -202,6 +210,10 @@ function onCanvasClick(e: MouseEvent) {
   const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
   const worldY = vy + (clickY / canvas.height) * renderer.viewport.height;
 
+  // store for shutter usage
+  lastTapWorld = { x: worldX, y: worldY };
+  console.log('[main] onCanvasClick world coords', lastTapWorld);
+
   if (
     worldX < 0 ||
     worldY < 0 ||
@@ -224,28 +236,33 @@ function onCanvasClick(e: MouseEvent) {
   }
   const maskBuf: HTMLCanvasElement = (scene as any)._maskBuffer;
   const tctx = maskBuf.getContext("2d", { willReadFrequently: true });
-    if (!tctx) return;
-  
-    const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
-    const hex = Scene.rgbToHex(p[0], p[1], p[2]);
-    const foundName = scene.markFoundByColor(hex);
-    if (foundName) {
-      console.log("Found", foundName);
-      renderer.triggerFlash();
-      // update HUD (show celebration when objective completed)
-      const objEl = document.getElementById("objective");
-      if (objEl) {
-        const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-        if (scene.allFound(objectiveAnimals)) {
-          objEl.textContent = "🎉"; // party popper if all found
-        }
+  if (!tctx) return;
+
+  const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
+  const hex = Scene.rgbToHex(p[0], p[1], p[2]);
+  const foundName = scene.markFoundByColor(hex);
+  if (foundName) {
+    console.log("Found", foundName);
+    renderer.triggerFlash();
+    // update HUD (show celebration when objective completed)
+    const objEl = document.getElementById("objective");
+    if (objEl) {
+      const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+      if (scene.allFound(objectiveAnimals)) {
+        objEl.textContent = "🎉"; // party popper if all found
       }
     }
+  }
 }
 
 function loop(ts: number) {
   const dt = ts - lastTime;
   lastTime = ts;
+  // occasional tick log to confirm the RAF loop is running
+  if (Math.floor(ts / 1000) % 5 === 0 && ts % 1000 < 32) {
+    console.log('[main] loop tick', { ts });
+  }
+
   if (!pausedForPolaroid) {
     renderer.update();
     renderer.draw();
@@ -289,6 +306,11 @@ canvas.addEventListener("pointermove", (e) => {
 
   const dx = dxCss * dpr;
   const dy = dyCss * dpr;
+
+  // debug log dragging deltas (backing px)
+  if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+    console.log('[main] dragging delta (backing px)', { dx, dy });
+  }
 
   // convert screen delta to world delta and pan viewport
   const worldDx = (dx / canvas.width) * renderer.viewport.width;

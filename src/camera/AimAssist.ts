@@ -10,8 +10,9 @@ export interface Viewport {
 export class AimAssist {
   private tolerance: number;
 
-  constructor(tolerancePx: number = 50) {
-    this.tolerance = tolerancePx;
+  constructor(tolerancePx: number = 200) {
+  // increased default tolerance to make development easier during dev
+  this.tolerance = tolerancePx;
   }
 
   /**
@@ -48,13 +49,6 @@ export class AimAssist {
   const bottom = ay + r;
 
   return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
-    // TODO
-    // return !(
-    //   animal.cx + animal.radius < viewport.x ||
-    //   animal.cx - animal.radius > viewport.x + viewport.width ||
-    //   animal.cy + animal.radius < viewport.y ||
-    //   animal.cy - animal.radius > viewport.y + viewport.height
-    // );
   }
 
   /**
