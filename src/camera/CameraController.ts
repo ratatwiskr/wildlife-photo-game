@@ -21,31 +21,33 @@ export class CameraController {
    */
   nudgeToTarget(target: any, duration = 900): Promise<boolean> {
     return new Promise((resolve) => {
-      if (this.aimAssist.isAnimalInView(this.viewport as unknown as Viewport, target)) {
-        console.log('[camera] target already in view, no nudge');
+      // compute how much to nudge the viewport to center the animal
+      const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
+      // if computeNudge says no movement needed, resolve false
+      if ((nudge.dx === 0 && nudge.dy === 0)) {
+        console.log('[camera] nudge not needed (already centered within tolerance)');
         resolve(false);
         return;
       }
-      const nudge = this.aimAssist.computeNudge(this.viewport as unknown as Viewport, target);
+
       console.log('[camera] starting slow nudge', { nudge, duration });
       const startX = this.viewport.x;
       const startY = this.viewport.y;
       const endX = startX + nudge.dx;
       const endY = startY + nudge.dy;
       const start = performance.now();
-      const self = this;
 
-      function step(now: number) {
+      const step = (now: number) => {
         const t = Math.min(1, (now - start) / duration);
         const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-        self.viewport.x = startX + (endX - startX) * ease;
-        self.viewport.y = startY + (endY - startY) * ease;
+        this.viewport.x = startX + (endX - startX) * ease;
+        this.viewport.y = startY + (endY - startY) * ease;
         if (t < 1) requestAnimationFrame(step);
         else {
           console.log('[camera] slow nudge complete');
           resolve(true);
         }
-      }
+      };
 
       requestAnimationFrame(step);
     });

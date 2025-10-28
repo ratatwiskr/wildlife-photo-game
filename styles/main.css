@@ -144,6 +144,28 @@ canvas#game {
   border-radius: 8px;
 }
 
+/* scene picker responsive grid */
+.scene-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.scene-grid > div {
+  width: calc(25% - 12px);
+  min-width: 180px;
+  background: #333;
+  padding: 8px;
+  border-radius: 8px;
+}
+.scene-grid img { width: 100%; height: auto; display: block; border-radius: 4px; }
+
+@media (max-width: 800px) {
+  .scene-grid > div { width: calc(50% - 12px); }
+}
+@media (max-width: 420px) {
+  .scene-grid > div { width: 100%; }
+}
+
 #ui {
   display: flex;
   flex-direction: column;

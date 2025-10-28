@@ -33,6 +33,7 @@
           <div id="ui">
             <select id="sceneSelect"></select>
             <button id="shutter" title="Take Photo">📸</button>
+            <button id="stopConfetti" title="Stop Confetti" style="display:none">🧹</button>
           </div>
         </div>
       </div>
@@ -40,8 +41,8 @@
 
     <!-- Fullscreen scene picker (draft) -->
     <div id="scenePicker" style="display:none;position:fixed;inset:0;background:#222;color:#fff;padding:18px;overflow:auto">
-      <h2>Select a scene</h2>
-      <div id="sceneList"></div>
+      <h2 style="margin-top:0">Select a scene</h2>
+      <div id="sceneList" class="scene-grid"></div>
     </div>
 
     <script type="module" src="./scripts/main.js"></script>

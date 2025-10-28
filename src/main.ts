@@ -4,6 +4,7 @@ import { SceneRenderer } from "./scene/SceneRenderer.js";
 import { InputHandler } from "./input/InputHandler.js";
 import { CameraController } from "./camera/CameraController.js";
 import { PolaroidUI } from "./ui/Polaroid.js";
+import { Confetti } from "./ui/Confetti.js";
 import { basePath } from "./config.js";
 
 /**
@@ -19,6 +20,7 @@ let renderer: SceneRenderer;
 let scene: Scene;
 let cameraCtrl: CameraController | null = null;
 const polaroidUi = new PolaroidUI();
+const confetti = new Confetti();
 let pausedForPolaroid = false;
 let isLoaded = false;
 let lastTime = 0;
@@ -65,7 +67,7 @@ async function init() {
   const sceneName = params.get("scene") || "jungle_adventure";
 
   try {
-    const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+  const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
     console.log("[main] loading", defUrl);
     const res = await fetch(defUrl);
     if (!res.ok) throw new Error(`Failed to load ${defUrl}`);
@@ -92,6 +94,13 @@ async function init() {
     const backBtn = document.getElementById("back");
     const scenePicker = document.getElementById("scenePicker");
     const sceneList = document.getElementById("sceneList");
+    const stopConfBtn = document.getElementById('stopConfetti');
+    if (stopConfBtn) {
+      stopConfBtn.addEventListener('click', () => {
+        confetti.stop();
+        stopConfBtn.style.display = 'none';
+      });
+    }
       if (backBtn && scenePicker && sceneList) {
         backBtn.addEventListener("click", () => {
           const vp = document.getElementById("viewport");
@@ -128,6 +137,36 @@ async function init() {
           sceneList.appendChild(close);
         });
       }
+
+    // populate scene picker from manifest (assets/scenes/scene-manifest.json)
+    try {
+      const manifestRes = await fetch(`${basePath}/assets/scenes/scene-manifest.json`);
+      if (manifestRes.ok) {
+        const manifest: string[] = await manifestRes.json();
+        const picker = document.getElementById('sceneList');
+        if (picker) {
+          picker.innerHTML = '';
+          for (const name of manifest) {
+            const box = document.createElement('div');
+            const thumb = document.createElement('img');
+            thumb.src = `${basePath}/assets/scenes/${name}.jpg`;
+            thumb.alt = name;
+            const label = document.createElement('div');
+            label.textContent = name;
+            label.style.marginTop = '6px';
+            label.style.textAlign = 'center';
+            box.appendChild(thumb);
+            box.appendChild(label);
+            box.addEventListener('click', () => {
+              window.location.search = `?scene=${name}`;
+            });
+            picker.appendChild(box);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[main] no scene manifest', e);
+    }
 
   // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
     new InputHandler(canvas, (dxScreen, dyScreen) => {
@@ -179,20 +218,26 @@ async function init() {
         console.log('[main] captured', res.name);
         // suppress celebration until after polaroid is dismissed
         renderer.suppressCelebration = true;
+        // commented out: play shutter sound here
+        // const audio = new Audio('/sounds/shutter.mp3'); audio.play().catch(()=>{});
         // wait 1s so flash is visible
         setTimeout(() => {
           pausedForPolaroid = true;
           polaroidUi.show(res.polaroid as HTMLCanvasElement);
-          polaroidUi['container'].addEventListener('click', () => {
+            polaroidUi['container'].addEventListener('click', () => {
             pausedForPolaroid = false;
             polaroidUi.hide();
             // un-suppress celebration so renderer may show it
             renderer.suppressCelebration = false;
-            // update emoji-only HUD when objective completed
-            const objEl = document.getElementById("objective");
-            if (objEl) {
-              const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-              if (scene.allFound(objectiveAnimals)) objEl.textContent = "🎉";
+            // if objectives complete, show confetti burst then continuous rain
+            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+            if (scene.allFound(objectiveAnimals)) {
+              // commented out victory sound
+              // const v = new Audio('/sounds/victory.mp3'); v.play().catch(()=>{});
+              confetti.burst(60);
+              // start continuous subtle confetti
+              confetti.startContinuous(4);
+              if (stopConfBtn) stopConfBtn.style.display = 'inline-block';
             }
           }, { once: true });
         }, 1000);

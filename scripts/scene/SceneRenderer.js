@@ -139,14 +139,13 @@ export class SceneRenderer {
     drawCelebration() {
         const ctx = this.ctx;
         ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.fillStyle = "white";
-        ctx.font = "bold 44px sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.font = "bold 28px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const foundCount = this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
-        ctx.fillText(`🎉 ${foundCount} photographed! 🎉`, this.canvas.width / 2, this.canvas.height / 2);
+        // subtle celebration text near top
+        ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
         ctx.restore();
     }
     randomBrightColor() {
