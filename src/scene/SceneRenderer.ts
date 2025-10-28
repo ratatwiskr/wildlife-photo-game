@@ -1,97 +1,52 @@
+// src/scene/SceneRenderer.ts
 import { Scene } from "./Scene.js";
 import { Viewport } from "./Viewport.js";
 
-/**
- * SceneRenderer
- * --------------
- * Responsible for drawing the scene, overlays, flash, and celebration screen.
- * Keeps logic decoupled from input and scene state.
- */
 export class SceneRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private scene?: Scene;
-  private viewport: Viewport;
+  public viewport?: Viewport;
 
-  // Overlay / UI
   private flashAlpha = 0;
-  private flashFadeRate = 0.05;
+  private flashFadeRate = 0.06;
   private flashActive = false;
 
-  // Objective / UI text
-  public currentObjective?: { title: string; tag: string; emoji?: string };
-
-  // Colors assigned per objective for outlines
   private objectiveColors: Record<string, string> = {};
+  public currentObjective?: { title: string; tag: string; emoji?: string };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D context not supported");
+    if (!ctx) throw new Error("Canvas 2D not supported");
     this.ctx = ctx;
-    this.viewport = new Viewport(canvas.width, canvas.height);
   }
 
-  /** Bind a scene to be rendered */
   setScene(scene: Scene) {
     this.scene = scene;
+
+    // create viewport that shows a fraction of the scene (e.g. 40% width)
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
+    const sceneW = scene.image.width;
+    const sceneH = scene.image.height;
+
+    // choose viewport size: fraction of full scene width/height (keeps aspect)
+    const fraction = 0.4; // show 40% of world horizontally
+    const vw = Math.max(
+      Math.min(Math.round(sceneW * fraction), sceneW),
+      Math.round(canvasW / 2)
+    );
+    const vh = Math.round((vw * canvasH) / canvasW); // preserve screen aspect ratio
+    this.viewport = new Viewport(sceneW, sceneH, vw, vh);
+
+    // objective colors
     this.objectiveColors = {};
-    // assign random color per objective tag
-    scene.definition.objectives?.forEach((obj) => {
-      this.objectiveColors[obj.tag] = this.randomBrightColor();
+    scene.definition.objectives?.forEach((o) => {
+      this.objectiveColors[o.tag] = this.randomBrightColor();
     });
   }
 
-  setViewport(v: Viewport) {
-    this.viewport = v;
-  }
-
-  /** Trigger a white flash overlay (photo capture) */
-  triggerFlash() {
-    this.flashAlpha = 1;
-    this.flashActive = true;
-  }
-
-  /** Main draw method – can be called from animation loop or input handler */
-  draw() {
-    const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    if (!this.scene) {
-      this.drawNoScene(ctx);
-      return;
-    }
-
-    ctx.save();
-    this.viewport.apply(ctx);
-    ctx.drawImage(this.scene.image, 0, 0);
-    ctx.restore();
-
-    // Draw base scene image
-    ctx.drawImage(
-      this.scene.image,
-      0,
-      0,
-      this.canvas.width,
-      this.canvas.height
-    );
-
-    // Draw overlays for found animals
-    this.drawFoundOutlines(ctx);
-
-    // Draw flash overlay if active
-    this.drawFlash(ctx);
-
-    // Draw objective text / emoji
-    this.drawObjectiveUI(ctx);
-
-    // Draw celebration if all found
-    if (this.scene.allFound(this.scene.definition.animals)) {
-      this.drawCelebration(ctx);
-    }
-  }
-
-  /** Called periodically (e.g., requestAnimationFrame) to update transitions */
   update() {
     if (this.flashActive) {
       this.flashAlpha -= this.flashFadeRate;
@@ -102,98 +57,138 @@ export class SceneRenderer {
     }
   }
 
-  /** Draw “no scene selected” message */
-  private drawNoScene(ctx: CanvasRenderingContext2D) {
-    ctx.fillStyle = "#888";
-    ctx.font = "24px sans-serif";
+  draw() {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (!this.scene || !this.viewport) {
+      this.drawNoScene();
+      return;
+    }
+
+    // Draw source rect (viewport) to full canvas
+    // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+    ctx.drawImage(
+      this.scene.image,
+      Math.round(this.viewport.x),
+      Math.round(this.viewport.y),
+      Math.round(this.viewport.width),
+      Math.round(this.viewport.height),
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height
+    );
+
+    // draw outlines for found animals that are within viewport
+    this.drawFoundOutlines();
+
+    // flash overlay
+    if (this.flashAlpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = this.flashAlpha;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.restore();
+    }
+
+    // draw current objective (emoji / title) top center
+    if (this.currentObjective) {
+      ctx.save();
+      ctx.font = "bold 28px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "white";
+      ctx.fillText(
+        this.currentObjective.emoji ?? this.currentObjective.title,
+        this.canvas.width / 2,
+        8
+      );
+      ctx.restore();
+    }
+
+    // celebration overlay
+    if (this.scene.allFound(this.scene.definition.animals)) {
+      this.drawCelebration();
+    }
+  }
+
+  triggerFlash() {
+    this.flashAlpha = 1;
+    this.flashActive = true;
+  }
+
+  private drawFoundOutlines() {
+    if (!this.scene || !this.viewport) return;
+    const ctx = this.ctx;
+
+    for (const animal of this.scene.definition.animals) {
+      if (!animal.found) continue;
+      if (animal.x == null || animal.y == null) continue;
+
+      // is centroid inside viewport?
+      if (!this.viewport.contains(animal.x, animal.y)) continue;
+
+      // convert world coords -> screen coords
+      const relX = (animal.x - this.viewport.x) / this.viewport.width;
+      const relY = (animal.y - this.viewport.y) / this.viewport.height;
+      const screenX = Math.round(relX * this.canvas.width);
+      const screenY = Math.round(relY * this.canvas.height);
+      const screenRadius = Math.max(
+        8,
+        Math.round(
+          (animal.radius ?? 20) * (this.canvas.width / this.viewport.width)
+        )
+      );
+
+      // color by objective tag (first tag)
+      const tag = animal.tags?.[0] ?? "default";
+      const color = this.objectiveColors[tag] ?? "#ff0";
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.lineWidth = Math.max(3, Math.round(screenRadius * 0.18));
+      ctx.strokeStyle = color;
+      ctx.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private drawNoScene() {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#444";
+    ctx.font = "20px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(
-      "No scene selected",
+      "No scene loaded",
       this.canvas.width / 2,
       this.canvas.height / 2
     );
   }
 
-  /** Draw outline or highlight for each found animal */
-  private drawFoundOutlines(ctx: CanvasRenderingContext2D) {
-    if (!this.scene) return;
-    const animals = this.scene.definition.animals;
-    animals.forEach((animal) => {
-      if (!animal.found) return;
-
-      // pick outline color by first matching objective tag, fallback white
-      const tag = animal.tags?.[0] ?? "default";
-      const color = this.objectiveColors[tag] ?? "#ffffff";
-
-      // Draw random location placeholder (in real game you'd have coords)
-      const randX = (animal.name.charCodeAt(0) * 37) % this.canvas.width;
-      const randY = (animal.name.charCodeAt(0) * 59) % this.canvas.height;
-      const radius = 30;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = color;
-      ctx.arc(randX, randY, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    });
-  }
-
-  /** White flash overlay */
-  private drawFlash(ctx: CanvasRenderingContext2D) {
-    if (this.flashAlpha <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = this.flashAlpha;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.restore();
-  }
-
-  /** Objective UI text or emoji */
-  private drawObjectiveUI(ctx: CanvasRenderingContext2D) {
-    if (!this.currentObjective) return;
-    const { title, emoji } = this.currentObjective;
-    ctx.save();
-    ctx.font = "bold 32px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "white";
-    const text = emoji ? `${emoji}` : title;
-    ctx.fillText(text, this.canvas.width / 2, 10);
-    ctx.restore();
-  }
-
-  /** Celebration overlay when all animals found */
-  private drawCelebration(ctx: CanvasRenderingContext2D) {
+  private drawCelebration() {
+    const ctx = this.ctx;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    ctx.fillStyle = "yellow";
-    ctx.font = "bold 48px sans-serif";
+    ctx.fillStyle = "white";
+    ctx.font = "bold 44px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(
-      "🎉 All Animals Found! 🎉",
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 20
-    );
-
     const foundCount =
       this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
-    ctx.font = "32px sans-serif";
     ctx.fillText(
-      `${foundCount} animals photographed`,
+      `🎉 ${foundCount} photographed! 🎉`,
       this.canvas.width / 2,
-      this.canvas.height / 2 + 40
+      this.canvas.height / 2
     );
 
     ctx.restore();
   }
 
-  /** Helper to generate bright random outline colors */
   private randomBrightColor(): string {
     const hue = Math.floor(Math.random() * 360);
     return `hsl(${hue}, 100%, 60%)`;
