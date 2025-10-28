@@ -8,6 +8,13 @@ export class SceneRenderer {
   private scene?: Scene;
   public viewport?: Viewport;
 
+  private cameraX = 0;
+  private cameraY = 0;
+
+  // define how far you can move
+  private maxX = 0;
+  private maxY = 0;
+
   private flashAlpha = 0;
   private flashFadeRate = 0.06;
   private flashActive = false;
@@ -45,6 +52,10 @@ export class SceneRenderer {
     scene.definition.objectives?.forEach((o) => {
       this.objectiveColors[o.tag] = this.randomBrightColor();
     });
+
+    // compute scrollable bounds
+    this.maxX = Math.max(0, scene.image.width - this.canvas.width);
+    this.maxY = Math.max(0, scene.image.height - this.canvas.height);
   }
 
   update() {
@@ -70,14 +81,14 @@ export class SceneRenderer {
     // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
     ctx.drawImage(
       this.scene.image,
-      Math.round(this.viewport.x),
-      Math.round(this.viewport.y),
-      Math.round(this.viewport.width),
-      Math.round(this.viewport.height),
+      this.cameraX,
+      this.cameraY,
+      this.canvas.width,
+      this.canvas.height, // source rect from image
       0,
       0,
       this.canvas.width,
-      this.canvas.height
+      this.canvas.height // destination rect on canvas
     );
 
     // draw outlines for found animals that are within viewport
@@ -192,5 +203,10 @@ export class SceneRenderer {
   private randomBrightColor(): string {
     const hue = Math.floor(Math.random() * 360);
     return `hsl(${hue}, 100%, 60%)`;
+  }
+
+  moveCamera(dx: number, dy: number) {
+    this.cameraX = Math.min(this.maxX, Math.max(0, this.cameraX + dx));
+    this.cameraY = Math.min(this.maxY, Math.max(0, this.cameraY + dy));
   }
 }
