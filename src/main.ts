@@ -260,46 +260,50 @@ async function init() {
 
   // If target is not in view, ask controller to nudge slowly first (await completion)
   // use a longer duration for a gentle slow nudge suitable for children
-  const nudged = await cameraCtrl.nudgeToTarget(target, 2400);
-  if (nudged) console.log('[main] nudge completed before capture');
+  const nudgeResult = await cameraCtrl.nudgeToTarget(target, 2400);
+  console.log('[main] nudge result', nudgeResult);
 
-      // Now attempt capture using lastTapWorld if available
-      const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
-      const res = cameraCtrl.attemptCapture(...(tap as any));
+  // If nudge was skipped because the target was too far, still show a friendly flash
+  // to provide feedback, but do not attempt capture or mark success.
+  if (nudgeResult === 'skipped-too-far') {
+    renderer.triggerFlash();
+    return;
+  }
 
-      // show flash immediately
-      renderer.triggerFlash();
+  // If already centered, proceed to attempt capture. If we actually nudged, we also
+  // proceed — the nudge should have centered the animal.
+    if (nudgeResult === 'already-centered' || nudgeResult === 'nudged') {
+    // Now attempt capture using lastTapWorld if available
+    const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
+    const captureRes = cameraCtrl.attemptCapture(...(tap as any));
 
-      if (res && res.polaroid) {
-        console.log('[main] captured', res.name);
-        // suppress celebration until after polaroid is dismissed
-        renderer.suppressCelebration = true;
-        // commented out: play shutter sound here
-        // const audio = new Audio('/sounds/shutter.mp3'); audio.play().catch(()=>{});
-        // wait 1s so flash is visible
-        setTimeout(() => {
-          pausedForPolaroid = true;
-          polaroidUi.show(res.polaroid as HTMLCanvasElement);
-            polaroidUi['container'].addEventListener('click', () => {
-            pausedForPolaroid = false;
-            polaroidUi.hide();
-            // un-suppress celebration so renderer may show it
-            renderer.suppressCelebration = false;
-            // if objectives complete, show confetti burst then continuous rain
-            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-            if (scene.allFound(objectiveAnimals)) {
-              // commented out victory sound
-              // const v = new Audio('/sounds/victory.mp3'); v.play().catch(()=>{});
-              confetti.burst(60);
-              // start continuous subtle confetti for a short duration
-              confetti.startContinuous(6);
-              // stop after 2 seconds automatically
-              setTimeout(() => confetti.stop(), 2000);
-            }
-          }, { once: true });
-        }, 1000);
-      }
-    });
+    // show flash immediately
+    renderer.triggerFlash();
+
+    if (captureRes && captureRes.polaroid) {
+      console.log('[main] captured', captureRes.name);
+      // suppress celebration until after polaroid is dismissed
+      renderer.suppressCelebration = true;
+      // ... rest of polaroid handling unchanged ...
+      setTimeout(() => {
+        pausedForPolaroid = true;
+        polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
+        polaroidUi['container'].addEventListener('click', () => {
+          pausedForPolaroid = false;
+          polaroidUi.hide();
+          renderer.suppressCelebration = false;
+          const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
+          if (scene.allFound(objectiveAnimals)) {
+            confetti.burst(60);
+            confetti.startContinuous(6);
+            setTimeout(() => confetti.stop(), 2000);
+          }
+        }, { once: true });
+      }, 1000);
+    }
+    return;
+  }
+  });
 
     console.log("[main] scene ready", sceneName);
   } catch (err) {

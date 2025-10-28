@@ -19,6 +19,7 @@ export class CameraController {
      * Animate a slow nudge toward the next target and resolve when complete.
      * Returns true if a nudge was performed, false if target already in view.
      */
+    // returns 'nudged' | 'skipped-too-far' | 'already-centered'
     nudgeToTarget(target, duration = 900) {
         return new Promise((resolve) => {
             // compute full delta required to center the animal in the viewport
@@ -30,7 +31,19 @@ export class CameraController {
             const tol = this.aimAssist.getTolerance();
             if (Math.abs(deltaX) <= tol && Math.abs(deltaY) <= tol) {
                 console.log('[camera] nudge not needed (already within tolerance)');
-                resolve(false);
+                resolve('already-centered');
+                return;
+            }
+            // enforce that the animal must be reasonably near the center before nudging
+            // compute euclidean distance from viewport center to animal
+            const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            // allow nudges only when within a fraction of the smaller viewport dimension
+            // lower values (0.4–0.5) make the gate stricter, higher values more permissive
+            const triggerFraction = 0.6; // change this to tune strictness (0.6 = 60%)
+            const maxTrigger = Math.min(this.viewport.width, this.viewport.height) * triggerFraction;
+            if (dist > maxTrigger) {
+                console.log('[camera] nudge skipped - target too far from center', { dist, maxTrigger });
+                resolve('skipped-too-far');
                 return;
             }
             console.log('[camera] starting slow nudge to center', { deltaX, deltaY, duration, tol });
@@ -49,7 +62,7 @@ export class CameraController {
                     requestAnimationFrame(step);
                 else {
                     console.log('[camera] slow nudge complete');
-                    resolve(true);
+                    resolve('nudged');
                 }
             };
             requestAnimationFrame(step);
