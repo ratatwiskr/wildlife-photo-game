@@ -30,10 +30,13 @@ body {
 .camera-body-inner {
   flex: 1 1 auto;
   display: block;
+  position: relative; /* ensure viewfinder aligns to canvas area */
+  max-width: 78vw;
 }
 
 canvas#game {
-  width: 78vw; /* close to camera body width but leave room for HUD */
+  display: block;
+  width: 100%;
   max-width: 1400px;
   aspect-ratio: 4 / 3;
   height: auto;
@@ -109,10 +112,21 @@ canvas#game {
   border-radius: 10px;
 }
 
-#camera-hud #hud-top {
+/* hud-top placeholder removed to avoid empty ruleset */
+
+/* Back button positioned at top-left of camera-frame */
+#camera-frame > button#back {
   position: absolute;
-  left: 18px;
-  top: 8px;
+  left: 6px;
+  top: 6px;
+  z-index: 20;
+  background: rgba(0,0,0,0.2);
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
 }
 
 #camera-hud #hud-top button#back {
@@ -123,7 +137,7 @@ canvas#game {
 }
 
 #camera-hud #objective {
-  font-size: 32px;
+  font-size: 44px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -144,9 +158,9 @@ canvas#game {
 
 #ui button,
 #ui select {
-  font-size: 1.1rem;
-  padding: 8px 10px;
-  border-radius: 6px;
+  font-size: 1.2rem;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: none;
   background: #444;
   color: white;
@@ -161,18 +175,18 @@ canvas#game {
 /* Shutter: big red round button */
 #ui button#shutter {
   background: radial-gradient(circle at 35% 30%, #ff6b6b, #de2b2b);
-  width: 80px;
-  height: 80px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  font-size: 28px;
+  font-size: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 0 rgba(0,0,0,0.4);
+  box-shadow: 0 8px 0 rgba(0,0,0,0.4);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 #ui button#shutter:active {
-  transform: translateY(4px) scale(0.98);
-  box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  transform: translateY(6px) scale(0.98);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.3);
 }

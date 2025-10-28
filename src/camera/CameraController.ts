@@ -45,12 +45,12 @@ export class CameraController {
     const sampleY = Math.round(tapWorldY ?? (this.viewport.y + this.viewport.height / 2));
 
     try {
-      const tmp = document.createElement('canvas');
-      tmp.width = this.scene.mask.width;
-      tmp.height = this.scene.mask.height;
-      const tctx = tmp.getContext('2d');
-      if (tctx) tctx.drawImage(this.scene.mask, 0, 0);
-      const p = tctx?.getImageData(sampleX, sampleY, 1, 1).data;
+  const tmp = document.createElement('canvas');
+  tmp.width = this.scene.mask.width;
+  tmp.height = this.scene.mask.height;
+  const tctx = tmp.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
+  if (tctx) tctx.drawImage(this.scene.mask, 0, 0);
+  const p = tctx?.getImageData(sampleX, sampleY, 1, 1).data;
       if (!p) {
         this.cooldown.trigger();
         return null;
@@ -85,8 +85,9 @@ export class CameraController {
         pctx.strokeRect(10, 10, w + 20, h + 20);
       }
 
-      this.cooldown.trigger();
-      return { name: foundName, polaroid: pol };
+  this.cooldown.trigger();
+  // return polaroid but consumer should show it after flash; we return it now
+  return { name: foundName, polaroid: pol };
     } catch (e) {
       this.cooldown.trigger();
       return null;

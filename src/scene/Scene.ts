@@ -110,8 +110,8 @@ export class Scene {
     const tmp = document.createElement("canvas");
     tmp.width = w;
     tmp.height = h;
-    const tctx = tmp.getContext("2d");
-    if (!tctx) {
+  const tctx = tmp.getContext("2d", { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
+  if (!tctx) {
       console.warn("Could not get 2D context for mask extraction");
       return;
     }

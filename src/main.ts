@@ -217,12 +217,13 @@ function onCanvasClick(e: MouseEvent) {
     const tmp = document.createElement("canvas");
     tmp.width = scene.mask.width;
     tmp.height = scene.mask.height;
-    const tctx = tmp.getContext("2d");
+    // hint the browser that we'll read pixels frequently
+    const tctx = tmp.getContext("2d", { willReadFrequently: true });
     if (tctx) tctx.drawImage(scene.mask, 0, 0);
     (scene as any)._maskBuffer = tmp;
   }
-    const maskBuf: HTMLCanvasElement = (scene as any)._maskBuffer;
-    const tctx = maskBuf.getContext("2d");
+  const maskBuf: HTMLCanvasElement = (scene as any)._maskBuffer;
+  const tctx = maskBuf.getContext("2d", { willReadFrequently: true });
     if (!tctx) return;
   
     const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;

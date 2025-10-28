@@ -3,6 +3,7 @@ import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
 import { InputHandler } from "./input/InputHandler.js";
 import { CameraController } from "./camera/CameraController.js";
+import { PolaroidUI } from "./ui/Polaroid.js";
 import { basePath } from "./config.js";
 /**
  * main.ts -- viewport-based scene, mask centroid extraction,
@@ -14,6 +15,8 @@ const sceneSelect = document.getElementById("sceneSelect");
 let renderer;
 let scene;
 let cameraCtrl = null;
+const polaroidUi = new PolaroidUI();
+let pausedForPolaroid = false;
 let isLoaded = false;
 let lastTime = 0;
 let isDragging = false;
@@ -132,8 +135,15 @@ async function init() {
         }
         shutter.addEventListener("click", () => {
             if (cameraCtrl) {
-                const ok = cameraCtrl.attemptCapture();
-                if (ok) {
+                const res = cameraCtrl.attemptCapture();
+                if (res && res.polaroid) {
+                    // show polaroid and pause
+                    pausedForPolaroid = true;
+                    polaroidUi.show(res.polaroid);
+                    polaroidUi['container'].addEventListener('click', () => {
+                        pausedForPolaroid = false;
+                        polaroidUi.hide();
+                    }, { once: true });
                     renderer.triggerFlash();
                     const objEl = document.getElementById("objective");
                     if (objEl) {
@@ -193,13 +203,14 @@ function onCanvasClick(e) {
         const tmp = document.createElement("canvas");
         tmp.width = scene.mask.width;
         tmp.height = scene.mask.height;
-        const tctx = tmp.getContext("2d");
+        // hint the browser that we'll read pixels frequently
+        const tctx = tmp.getContext("2d", { willReadFrequently: true });
         if (tctx)
             tctx.drawImage(scene.mask, 0, 0);
         scene._maskBuffer = tmp;
     }
     const maskBuf = scene._maskBuffer;
-    const tctx = maskBuf.getContext("2d");
+    const tctx = maskBuf.getContext("2d", { willReadFrequently: true });
     if (!tctx)
         return;
     const p = tctx.getImageData(Math.floor(worldX), Math.floor(worldY), 1, 1).data;
@@ -221,8 +232,10 @@ function onCanvasClick(e) {
 function loop(ts) {
     const dt = ts - lastTime;
     lastTime = ts;
-    renderer.update();
-    renderer.draw();
+    if (!pausedForPolaroid) {
+        renderer.update();
+        renderer.draw();
+    }
     requestAnimationFrame(loop);
 }
 function populateSceneSelect() {
