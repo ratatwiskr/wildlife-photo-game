@@ -37,7 +37,10 @@ export class AimAssist {
         const right = ax + r;
         const top = ay - r;
         const bottom = ay + r;
-        return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
+        return !(right < viewport.x ||
+            left > viewport.x + viewport.width ||
+            bottom < viewport.y ||
+            top > viewport.y + viewport.height);
     }
     /**
      * Compute a nudge (dx, dy) in world pixels to move viewport toward animal.

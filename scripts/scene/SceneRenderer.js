@@ -103,7 +103,7 @@ export class SceneRenderer {
         // debug: draw crosshair / circle for the next unfound target
         if (this.debug && this.scene) {
             const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-            const target = objectiveAnimals.find(a => !a.found && a.x != null && a.y != null);
+            const target = objectiveAnimals.find((a) => !a.found && a.x != null && a.y != null);
             if (target && target.x != null && target.y != null) {
                 const relX = (target.x - this.viewport.x) / this.viewport.width;
                 const relY = (target.y - this.viewport.y) / this.viewport.height;
@@ -117,7 +117,7 @@ export class SceneRenderer {
                     const tolWorld = this.debugTolerance;
                     const screenRadius = Math.round(tolWorld * (this.canvas.width / this.viewport.width));
                     ctx.save();
-                    ctx.strokeStyle = 'rgba(0,255,136,0.4)';
+                    ctx.strokeStyle = "rgba(0,255,136,0.4)";
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
@@ -176,7 +176,10 @@ export class SceneRenderer {
             const screenY = Math.round(relY * this.canvas.height);
             const screenRadius = Math.max(8, Math.round((animal.radius ?? 20) * (this.canvas.width / this.viewport.width)));
             // if the circle would be fully off-screen, skip drawing
-            if (screenX + screenRadius < 0 || screenX - screenRadius > this.canvas.width || screenY + screenRadius < 0 || screenY - screenRadius > this.canvas.height)
+            if (screenX + screenRadius < 0 ||
+                screenX - screenRadius > this.canvas.width ||
+                screenY + screenRadius < 0 ||
+                screenY - screenRadius > this.canvas.height)
                 continue;
             // color by objective tag (first tag)
             const tag = animal.tags?.[0] ?? "default";
