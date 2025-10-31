@@ -55,7 +55,8 @@ export class SceneRenderer {
     if (scene.definition.objectives) {
       for (const o of scene.definition.objectives) {
         const tags = o.tags?.length ? o.tags : o.tag ? [o.tag] : [];
-        for (const t of tags) this.objectiveColors[t] = this.randomBrightColor();
+        for (const t of tags)
+          this.objectiveColors[t] = this.randomBrightColor();
       }
     }
 
@@ -83,19 +84,29 @@ export class SceneRenderer {
       return;
     }
 
-  // Draw source rect (viewport.world) to full canvas.
-  // The viewport stores world pixels to show; draw that region from the scene image
-  // and scale it to the canvas backing resolution.
-  const sx = this.viewport.x;
-  const sy = this.viewport.y;
-  const sWidth = this.viewport.width;
-  const sHeight = this.viewport.height;
-  const dx = 0;
-  const dy = 0;
-  const dWidth = this.canvas.width;
-  const dHeight = this.canvas.height;
+    // Draw source rect (viewport.world) to full canvas.
+    // The viewport stores world pixels to show; draw that region from the scene image
+    // and scale it to the canvas backing resolution.
+    const sx = this.viewport.x;
+    const sy = this.viewport.y;
+    const sWidth = this.viewport.width;
+    const sHeight = this.viewport.height;
+    const dx = 0;
+    const dy = 0;
+    const dWidth = this.canvas.width;
+    const dHeight = this.canvas.height;
 
-  ctx.drawImage(this.scene.image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+    ctx.drawImage(
+      this.scene.image,
+      sx,
+      sy,
+      sWidth,
+      sHeight,
+      dx,
+      dy,
+      dWidth,
+      dHeight
+    );
 
     // draw outlines for found animals that are within viewport
     this.drawFoundOutlines();
@@ -108,83 +119,100 @@ export class SceneRenderer {
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.restore();
     }
-        // debug: draw mask overlay on top of the scene (but under crosshair)
-        if (this.debug && this.scene.mask) {
+    // debug: draw mask overlay on top of the scene (but under crosshair)
+    if (this.debug && this.scene.mask) {
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      try {
+        ctx.drawImage(
+          this.scene.mask,
+          sx,
+          sy,
+          sWidth,
+          sHeight,
+          dx,
+          dy,
+          dWidth,
+          dHeight
+        );
+      } catch (err) {
+        // ignore draw failures in debug mode
+      }
+      ctx.restore();
+    }
+
+    // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
+
+    // debug: draw crosshair / circle for the next unfound target
+    if (this.debug && this.scene) {
+      const objectiveAnimals = this.scene.getAnimalsForObjective(
+        this.currentObjective
+      );
+      const target = objectiveAnimals.find(
+        (a) => !a.found && a.x != null && a.y != null
+      );
+      if (target && target.x != null && target.y != null) {
+        const relX = (target.x - this.viewport.x) / this.viewport.width;
+        const relY = (target.y - this.viewport.y) / this.viewport.height;
+        const screenX = Math.round(relX * this.canvas.width);
+        const screenY = Math.round(relY * this.canvas.height);
+
+        // If the renderer has access to an external tolerance (via camera controller),
+        // draw the capture radius in world pixels translated to screen pixels.
+        // Note: SceneRenderer doesn't directly own camera controller; main.ts can
+        // set a helper value on renderer.debugTolerance when toggling debug.
+        if ((this as any).debugTolerance) {
+          const tolWorld = (this as any).debugTolerance as number;
+          const screenRadius = Math.round(
+            tolWorld * (this.canvas.width / this.viewport.width)
+          );
           ctx.save();
-          ctx.globalAlpha = 0.45;
-          try {
-            ctx.drawImage(this.scene.mask, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-          } catch (err) {
-            // ignore draw failures in debug mode
-          }
+          ctx.strokeStyle = "rgba(0,255,136,0.4)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+          ctx.stroke();
           ctx.restore();
         }
 
-  // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
-
-
-        // debug: draw crosshair / circle for the next unfound target
-        if (this.debug && this.scene) {
-          const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-          const target = objectiveAnimals.find(a => !a.found && a.x != null && a.y != null);
-          if (target && target.x != null && target.y != null) {
-            const relX = (target.x - this.viewport.x) / this.viewport.width;
-            const relY = (target.y - this.viewport.y) / this.viewport.height;
-            const screenX = Math.round(relX * this.canvas.width);
-            const screenY = Math.round(relY * this.canvas.height);
-
-            // If the renderer has access to an external tolerance (via camera controller),
-            // draw the capture radius in world pixels translated to screen pixels.
-            // Note: SceneRenderer doesn't directly own camera controller; main.ts can
-            // set a helper value on renderer.debugTolerance when toggling debug.
-            if ((this as any).debugTolerance) {
-              const tolWorld = (this as any).debugTolerance as number;
-              const screenRadius = Math.round(tolWorld * (this.canvas.width / this.viewport.width));
-              ctx.save();
-              ctx.strokeStyle = 'rgba(0,255,136,0.4)';
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
-              ctx.stroke();
-              ctx.restore();
-            }
-
-            ctx.save();
-            ctx.strokeStyle = "#00FF88";
-            ctx.lineWidth = 3;
-            // crosshair lines
-            ctx.beginPath();
-            ctx.moveTo(screenX - 20, screenY);
-            ctx.lineTo(screenX + 20, screenY);
-            ctx.moveTo(screenX, screenY - 20);
-            ctx.lineTo(screenX, screenY + 20);
-            ctx.stroke();
-            // target circle
-            ctx.beginPath();
-            ctx.arc(screenX, screenY, 14, 0, Math.PI * 2);
-            ctx.stroke();
-            // label
-            ctx.fillStyle = "rgba(0,0,0,0.6)";
-            ctx.font = "14px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillRect(screenX - 40, screenY + 18, 80, 20);
-            ctx.fillStyle = "#fff";
-            ctx.fillText(target.name || "target", screenX, screenY + 33);
-            ctx.restore();
-          }
-        }
+        ctx.save();
+        ctx.strokeStyle = "#00FF88";
+        ctx.lineWidth = 3;
+        // crosshair lines
+        ctx.beginPath();
+        ctx.moveTo(screenX - 20, screenY);
+        ctx.lineTo(screenX + 20, screenY);
+        ctx.moveTo(screenX, screenY - 20);
+        ctx.lineTo(screenX, screenY + 20);
+        ctx.stroke();
+        // target circle
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        // label
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.font = "14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillRect(screenX - 40, screenY + 18, 80, 20);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(target.name || "target", screenX, screenY + 33);
+        ctx.restore();
+      }
+    }
     // celebration overlay (can be suppressed while polaroid is shown)
-  const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-  if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
+    const objectiveAnimals = this.scene.getAnimalsForObjective(
+      this.currentObjective
+    );
+    if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
       this.drawCelebration();
     }
   }
 
   triggerFlash() {
-  console.log("[renderer] triggerFlash");
-  // longer flash for visual feedback
-  this.flashAlpha = 1;
-  this.flashActive = true;
+    console.log("[renderer] triggerFlash");
+    // longer flash for visual feedback
+    this.flashAlpha = 1;
+    this.flashActive = true;
   }
 
   private drawFoundOutlines() {
@@ -199,10 +227,21 @@ export class SceneRenderer {
       const relY = (animal.y - this.viewport.y) / this.viewport.height;
       const screenX = Math.round(relX * this.canvas.width);
       const screenY = Math.round(relY * this.canvas.height);
-      const screenRadius = Math.max(8, Math.round((animal.radius ?? 20) * (this.canvas.width / this.viewport.width)));
+      const screenRadius = Math.max(
+        8,
+        Math.round(
+          (animal.radius ?? 20) * (this.canvas.width / this.viewport.width)
+        )
+      );
 
       // if the circle would be fully off-screen, skip drawing
-      if (screenX + screenRadius < 0 || screenX - screenRadius > this.canvas.width || screenY + screenRadius < 0 || screenY - screenRadius > this.canvas.height) continue;
+      if (
+        screenX + screenRadius < 0 ||
+        screenX - screenRadius > this.canvas.width ||
+        screenY + screenRadius < 0 ||
+        screenY - screenRadius > this.canvas.height
+      )
+        continue;
 
       // color by objective tag (first tag)
       const tag = animal.tags?.[0] ?? "default";
@@ -232,16 +271,17 @@ export class SceneRenderer {
   }
 
   private drawCelebration() {
-  const ctx = this.ctx;
-  ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "bold 28px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const foundCount = this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
-  // subtle celebration text near top
-  ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
-  ctx.restore();
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = "bold 28px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const foundCount =
+      this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
+    // subtle celebration text near top
+    ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
+    ctx.restore();
   }
 
   private randomBrightColor(): string {

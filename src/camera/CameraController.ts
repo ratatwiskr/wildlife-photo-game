@@ -25,7 +25,10 @@ export class CameraController {
    * Returns true if a nudge was performed, false if target already in view.
    */
   // returns 'nudged' | 'skipped-too-far' | 'already-centered'
-  nudgeToTarget(target: any, duration = 900): Promise<'nudged' | 'skipped-too-far' | 'already-centered'> {
+  nudgeToTarget(
+    target: any,
+    duration = 900
+  ): Promise<"nudged" | "skipped-too-far" | "already-centered"> {
     return new Promise((resolve) => {
       // compute full delta required to center the animal in the viewport
       const centerX = this.viewport.x + this.viewport.width / 2;
@@ -35,8 +38,8 @@ export class CameraController {
       // if animal is already within aim tolerance, do nothing
       const tol = this.aimAssist.getTolerance();
       if (Math.abs(deltaX) <= tol && Math.abs(deltaY) <= tol) {
-        console.log('[camera] nudge not needed (already within tolerance)');
-        resolve('already-centered');
+        console.log("[camera] nudge not needed (already within tolerance)");
+        resolve("already-centered");
         return;
       }
 
@@ -46,14 +49,23 @@ export class CameraController {
       // allow nudges only when within a fraction of the smaller viewport dimension
       // lower values (0.4–0.5) make the gate stricter, higher values more permissive
       const triggerFraction = 0.6; // change this to tune strictness (0.6 = 60%)
-      const maxTrigger = Math.min(this.viewport.width, this.viewport.height) * triggerFraction;
+      const maxTrigger =
+        Math.min(this.viewport.width, this.viewport.height) * triggerFraction;
       if (dist > maxTrigger) {
-        console.log('[camera] nudge skipped - target too far from center', { dist, maxTrigger });
-        resolve('skipped-too-far');
+        console.log("[camera] nudge skipped - target too far from center", {
+          dist,
+          maxTrigger,
+        });
+        resolve("skipped-too-far");
         return;
       }
 
-      console.log('[camera] starting slow nudge to center', { deltaX, deltaY, duration, tol });
+      console.log("[camera] starting slow nudge to center", {
+        deltaX,
+        deltaY,
+        duration,
+        tol,
+      });
       const startX = this.viewport.x;
       const startY = this.viewport.y;
       // move by full delta so the animal becomes centered
@@ -68,8 +80,8 @@ export class CameraController {
         this.viewport.y = startY + (endY - startY) * ease;
         if (t < 1) requestAnimationFrame(step);
         else {
-          console.log('[camera] slow nudge complete');
-          resolve('nudged');
+          console.log("[camera] slow nudge complete");
+          resolve("nudged");
         }
       };
 
@@ -84,35 +96,49 @@ export class CameraController {
    * Attempt capture. Returns an object when an animal was photographed:
    * { name, imageCanvas } where imageCanvas is a cutout polaroid-like canvas.
    */
-  attemptCapture(tapWorldX?: number, tapWorldY?: number): { name: string; polaroid?: HTMLCanvasElement } | null {
-  console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
+  attemptCapture(
+    tapWorldX?: number,
+    tapWorldY?: number
+  ): { name: string; polaroid?: HTMLCanvasElement } | null {
+    console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
     if (this.cooldown.isActive()) {
       console.log("[camera] cooldown active");
       return null;
     }
 
     const obj = (this.scene.definition.objectives || [])[0];
-    const animals = obj ? this.scene.getAnimalsForObjective(obj) : this.scene.definition.animals;
+    const animals = obj
+      ? this.scene.getAnimalsForObjective(obj)
+      : this.scene.definition.animals;
     const target = animals.find((a) => !a.found);
     if (!target) return null;
 
     // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
-    if (!this.aimAssist.isAnimalInView(this.viewport as unknown as Viewport, target)) {
-      console.log('[camera] target not in view; require nudge before capture');
+    if (
+      !this.aimAssist.isAnimalInView(
+        this.viewport as unknown as Viewport,
+        target
+      )
+    ) {
+      console.log("[camera] target not in view; require nudge before capture");
       return null;
     }
 
     // sample at tap coords if provided, otherwise use viewport center
-    const sampleX = Math.round(tapWorldX ?? (this.viewport.x + this.viewport.width / 2));
-    const sampleY = Math.round(tapWorldY ?? (this.viewport.y + this.viewport.height / 2));
+    const sampleX = Math.round(
+      tapWorldX ?? this.viewport.x + this.viewport.width / 2
+    );
+    const sampleY = Math.round(
+      tapWorldY ?? this.viewport.y + this.viewport.height / 2
+    );
 
     try {
-  const tmp = document.createElement('canvas');
-  tmp.width = this.scene.mask.width;
-  tmp.height = this.scene.mask.height;
-      const tctx = tmp.getContext('2d', { willReadFrequently: true });
+      const tmp = document.createElement("canvas");
+      tmp.width = this.scene.mask.width;
+      tmp.height = this.scene.mask.height;
+      const tctx = tmp.getContext("2d", { willReadFrequently: true });
       if (!tctx) {
-        console.log('[camera] no 2d context for mask');
+        console.log("[camera] no 2d context for mask");
         this.cooldown.trigger();
         return null;
       }
@@ -134,33 +160,47 @@ export class CameraController {
       }
 
       // build polaroid canvas: cut bounding box from scene.image using mask
-      const animal = this.scene.definition.animals.find((a) => a.name === foundName)!;
+      const animal = this.scene.definition.animals.find(
+        (a) => a.name === foundName
+      )!;
       const pad = 12;
-      const left = Math.max(0, Math.floor((animal.x ?? 0) - (animal.radius ?? 30) - pad));
-      const top = Math.max(0, Math.floor((animal.y ?? 0) - (animal.radius ?? 30) - pad));
-      const w = Math.min(this.scene.image.width - left, Math.floor((animal.radius ?? 30) * 2 + pad * 2));
-      const h = Math.min(this.scene.image.height - top, Math.floor((animal.radius ?? 30) * 2 + pad * 3));
+      const left = Math.max(
+        0,
+        Math.floor((animal.x ?? 0) - (animal.radius ?? 30) - pad)
+      );
+      const top = Math.max(
+        0,
+        Math.floor((animal.y ?? 0) - (animal.radius ?? 30) - pad)
+      );
+      const w = Math.min(
+        this.scene.image.width - left,
+        Math.floor((animal.radius ?? 30) * 2 + pad * 2)
+      );
+      const h = Math.min(
+        this.scene.image.height - top,
+        Math.floor((animal.radius ?? 30) * 2 + pad * 3)
+      );
 
-      const pol = document.createElement('canvas');
+      const pol = document.createElement("canvas");
       pol.width = w + 40; // white border
       pol.height = h + 80; // larger bottom border
-      const pctx = pol.getContext('2d');
+      const pctx = pol.getContext("2d");
       if (pctx) {
         // white polaroid background
-        pctx.fillStyle = '#fff';
+        pctx.fillStyle = "#fff";
         pctx.fillRect(0, 0, pol.width, pol.height);
         // draw image cutout centered with small inner margin
         pctx.drawImage(this.scene.image, left, top, w, h, 20, 20, w, h);
         // optional: add subtle shadow
-        pctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        pctx.strokeStyle = "rgba(0,0,0,0.08)";
         pctx.strokeRect(10, 10, w + 20, h + 20);
       }
 
-  this.cooldown.trigger();
-  // return polaroid but consumer should show it after flash; we return it now
-  return { name: foundName, polaroid: pol };
+      this.cooldown.trigger();
+      // return polaroid but consumer should show it after flash; we return it now
+      return { name: foundName, polaroid: pol };
     } catch (e) {
-      console.error('[camera] capture failed', e);
+      console.error("[camera] capture failed", e);
       this.cooldown.trigger();
       return null;
     }

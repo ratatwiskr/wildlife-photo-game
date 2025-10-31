@@ -67,7 +67,7 @@ async function init() {
   const sceneName = params.get("scene") || "jungle_adventure";
 
   try {
-  const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+    const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
     console.log("[main] loading", defUrl);
     const res = await fetch(defUrl);
     if (!res.ok) throw new Error(`Failed to load ${defUrl}`);
@@ -77,12 +77,13 @@ async function init() {
     await scene.loadImages(); // load images
     scene.extractPositionsFromMask(); // compute centroids
 
-  renderer.setScene(scene);
+    renderer.setScene(scene);
     renderer.currentObjective = def.objectives?.[0];
     // update DOM HUD objective emoji/title
     const objEl = document.getElementById("objective");
     if (objEl && def.objectives && def.objectives[0]) {
-      objEl.textContent = def.objectives[0].emoji || def.objectives[0].title || "📍";
+      objEl.textContent =
+        def.objectives[0].emoji || def.objectives[0].title || "📍";
     }
     isLoaded = true;
 
@@ -93,44 +94,44 @@ async function init() {
     // setup back button to show a simple scene picker draft
     const backBtn = document.getElementById("back");
     const scenePicker = document.getElementById("scenePicker");
-  const sceneList = document.getElementById("sceneList");
-      if (backBtn && scenePicker && sceneList) {
-              backBtn.addEventListener("click", () => {
-          const vp = document.getElementById("viewport");
-                console.debug('[main] back pressed, toggling scene picker');
-          // show full-screen picker draft and hide viewport
-          if (scenePicker.style.display === "block") {
-            scenePicker.style.display = "none";
-            if (vp) vp.style.display = "inline-block";
-            return;
-          }
-          scenePicker.style.display = "block";
-          if (vp) vp.style.display = "none";
-          sceneList.innerHTML = "";
-          // populate simple preview list (we only have jungle_adventure currently)
-          const s = document.createElement("div");
-          s.style.margin = "8px 0";
-          const thumb = document.createElement("img");
-          thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
-          thumb.style.maxWidth = "240px";
-          thumb.style.display = "block";
-          const label = document.createElement("div");
-          label.textContent = "jungle_adventure";
-          s.appendChild(thumb);
-          s.appendChild(label);
-          sceneList.appendChild(s);
-          // add a close button to return
-          const close = document.createElement("button");
-          close.textContent = "Close";
-          close.style.display = "block";
-          close.style.marginTop = "12px";
-          close.addEventListener("click", () => {
-            scenePicker.style.display = "none";
-            if (vp) vp.style.display = "inline-block";
-          });
-          sceneList.appendChild(close);
+    const sceneList = document.getElementById("sceneList");
+    if (backBtn && scenePicker && sceneList) {
+      backBtn.addEventListener("click", () => {
+        const vp = document.getElementById("viewport");
+        console.debug("[main] back pressed, toggling scene picker");
+        // show full-screen picker draft and hide viewport
+        if (scenePicker.style.display === "block") {
+          scenePicker.style.display = "none";
+          if (vp) vp.style.display = "inline-block";
+          return;
+        }
+        scenePicker.style.display = "block";
+        if (vp) vp.style.display = "none";
+        sceneList.innerHTML = "";
+        // populate simple preview list (we only have jungle_adventure currently)
+        const s = document.createElement("div");
+        s.style.margin = "8px 0";
+        const thumb = document.createElement("img");
+        thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
+        thumb.style.maxWidth = "240px";
+        thumb.style.display = "block";
+        const label = document.createElement("div");
+        label.textContent = "jungle_adventure";
+        s.appendChild(thumb);
+        s.appendChild(label);
+        sceneList.appendChild(s);
+        // add a close button to return
+        const close = document.createElement("button");
+        close.textContent = "Close";
+        close.style.display = "block";
+        close.style.marginTop = "12px";
+        close.addEventListener("click", () => {
+          scenePicker.style.display = "none";
+          if (vp) vp.style.display = "inline-block";
         });
-      }
+        sceneList.appendChild(close);
+      });
+    }
 
     // populate scene picker from manifest (assets/scenes/scene-manifest.json)
     // Populate scene picker by scanning the scenes directory for .json files
@@ -146,36 +147,38 @@ async function init() {
           const href = m[1];
           // skip any entries inside a `template/` directory
           if (/\/template\//i.test(href) || /^template\//i.test(href)) {
-            console.debug('[main] skipping template folder entry', href);
+            console.debug("[main] skipping template folder entry", href);
             continue;
           }
-          const base = href.replace(/\.json$/, '').replace(/.*\//, '');
+          const base = href.replace(/\.json$/, "").replace(/.*\//, "");
           names.add(base);
         }
         const list = Array.from(names);
-        console.debug('[main] scanned scene directory, found', list);
-        const picker = document.getElementById('sceneList');
+        console.debug("[main] scanned scene directory, found", list);
+        const picker = document.getElementById("sceneList");
         if (picker) {
-          picker.innerHTML = '';
+          picker.innerHTML = "";
           for (const name of list) createSceneCard(picker, name);
         }
       } else {
-        console.warn('[main] directory scan failed', dirRes.status);
+        console.warn("[main] directory scan failed", dirRes.status);
       }
     } catch (e) {
-      console.warn('[main] directory scan error', e);
+      console.warn("[main] directory scan error", e);
     }
 
     // helper to create a card DOM node
     function createSceneCard(picker: HTMLElement, name: string) {
-      const card = document.createElement('div');
-      card.className = 'scene-card';
-      const title = document.createElement('div');
-      title.className = 'scene-title';
-      const pretty = name.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const card = document.createElement("div");
+      card.className = "scene-card";
+      const title = document.createElement("div");
+      title.className = "scene-title";
+      const pretty = name
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
       title.textContent = pretty;
-      const thumbWrap = document.createElement('div');
-      thumbWrap.className = 'thumb-wrap';
+      const thumbWrap = document.createElement("div");
+      thumbWrap.className = "thumb-wrap";
 
       // try to fetch the scene json to get an explicit preview image path
       (async () => {
@@ -183,47 +186,57 @@ async function init() {
           const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
           if (jres.ok) {
             const def = await jres.json();
-            const imgPath = def.image ? `${basePath}/assets/scenes/${def.image}` : `${basePath}/assets/scenes/${name}.jpg`;
-            const thumb = document.createElement('img');
+            const imgPath = def.image
+              ? `${basePath}/assets/scenes/${def.image}`
+              : `${basePath}/assets/scenes/${name}.jpg`;
+            const thumb = document.createElement("img");
             thumb.src = imgPath;
             thumb.alt = name;
-            thumb.className = 'scene-thumb blurred';
+            thumb.className = "scene-thumb blurred";
             thumb.onload = () => {
               thumbWrap.appendChild(thumb);
             };
             thumb.onerror = () => {
-              console.debug('[main] thumbnail failed to load for', name, imgPath);
+              console.debug(
+                "[main] thumbnail failed to load for",
+                name,
+                imgPath
+              );
             };
           } else {
-            console.debug('[main] scene json fetch failed for', name, jres.status);
+            console.debug(
+              "[main] scene json fetch failed for",
+              name,
+              jres.status
+            );
           }
         } catch (e) {
-          console.debug('[main] error fetching scene json for', name, e);
+          console.debug("[main] error fetching scene json for", name, e);
         } finally {
           // always append the card even if image failed; show placeholder if empty
           if (!thumbWrap.hasChildNodes()) {
-            const ph = document.createElement('div');
-            ph.style.height = '120px';
-            ph.style.background = '#222';
-            ph.style.display = 'flex';
-            ph.style.alignItems = 'center';
-            ph.style.justifyContent = 'center';
-            ph.textContent = 'Preview';
-            ph.style.color = '#666';
+            const ph = document.createElement("div");
+            ph.style.height = "120px";
+            ph.style.background = "#222";
+            ph.style.display = "flex";
+            ph.style.alignItems = "center";
+            ph.style.justifyContent = "center";
+            ph.textContent = "Preview";
+            ph.style.color = "#666";
             thumbWrap.appendChild(ph);
           }
           card.appendChild(title);
           card.appendChild(thumbWrap);
-          card.addEventListener('click', () => {
+          card.addEventListener("click", () => {
             globalThis.location.search = `?scene=${name}`;
           });
-          console.debug('[main] created scene card', name);
+          console.debug("[main] created scene card", name);
           picker.appendChild(card);
         }
       })();
     }
 
-  // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
+    // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
     new InputHandler(canvas, (dxScreen, dyScreen) => {
       if (!renderer.viewport) return;
       // world delta = (dx / canvas.width) * viewport.width
@@ -232,13 +245,13 @@ async function init() {
       renderer.viewport.pan(-worldDx, -worldDy); // negative because dragging direction -> world movement
     });
 
-  canvas.addEventListener("click", onCanvasClick);
+    canvas.addEventListener("click", onCanvasClick);
     // create camera controller wiring shutter + cooldown
     if (renderer.viewport) {
       cameraCtrl = new CameraController(scene, renderer.viewport as any);
     }
     shutter.addEventListener("click", async () => {
-      console.log('[main] shutter pressed', { lastTapWorld });
+      console.log("[main] shutter pressed", { lastTapWorld });
       if (!cameraCtrl) {
         renderer.triggerFlash();
         return;
@@ -246,70 +259,85 @@ async function init() {
 
       // Log objectives and status
       const objectives = scene.definition.objectives || [];
-      console.log('[main] objectives', objectives.map(o => ({ emoji: o.emoji || o.title, tag: o.tag, found: scene.getAnimalsForObjective(o).filter(a => a.found).length })));
+      console.log(
+        "[main] objectives",
+        objectives.map((o) => ({
+          emoji: o.emoji || o.title,
+          tag: o.tag,
+          found: scene.getAnimalsForObjective(o).filter((a) => a.found).length,
+        }))
+      );
 
       // pick next unfound target for current objective
       const obj = scene.definition.objectives?.[0];
-      const animals = obj ? scene.getAnimalsForObjective(obj) : scene.definition.animals;
-      const target = animals.find(a => !a.found);
+      const animals = obj
+        ? scene.getAnimalsForObjective(obj)
+        : scene.definition.animals;
+      const target = animals.find((a) => !a.found);
       if (!target) {
-        console.log('[main] no target remains');
+        console.log("[main] no target remains");
         renderer.triggerFlash();
         return;
       }
 
-  // If target is not in view, ask controller to nudge slowly first (await completion)
-  // use a longer duration for a gentle slow nudge suitable for children
-  const nudgeResult = await cameraCtrl.nudgeToTarget(target, 2400);
-  console.log('[main] nudge result', nudgeResult);
+      // If target is not in view, ask controller to nudge slowly first (await completion)
+      // use a longer duration for a gentle slow nudge suitable for children
+      const nudgeResult = await cameraCtrl.nudgeToTarget(target, 2400);
+      console.log("[main] nudge result", nudgeResult);
 
-  // If nudge was skipped because the target was too far, still show a friendly flash
-  // to provide feedback, but do not attempt capture or mark success.
-  if (nudgeResult === 'skipped-too-far') {
-    renderer.triggerFlash();
-    // short visual hint: add nudge-skip class to camera-frame for the duration of the animation
-    const frame = document.getElementById('camera-frame');
-    if (frame) {
-      frame.classList.add('nudge-skip');
-      setTimeout(() => frame.classList.remove('nudge-skip'), 800);
-    }
-    return;
-  }
+      // If nudge was skipped because the target was too far, still show a friendly flash
+      // to provide feedback, but do not attempt capture or mark success.
+      if (nudgeResult === "skipped-too-far") {
+        renderer.triggerFlash();
+        // short visual hint: add nudge-skip class to camera-frame for the duration of the animation
+        const frame = document.getElementById("camera-frame");
+        if (frame) {
+          frame.classList.add("nudge-skip");
+          setTimeout(() => frame.classList.remove("nudge-skip"), 800);
+        }
+        return;
+      }
 
-  // If already centered, proceed to attempt capture. If we actually nudged, we also
-  // proceed — the nudge should have centered the animal.
-    if (nudgeResult === 'already-centered' || nudgeResult === 'nudged') {
-    // Now attempt capture using lastTapWorld if available
-    const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
-    const captureRes = cameraCtrl.attemptCapture(...(tap as any));
+      // If already centered, proceed to attempt capture. If we actually nudged, we also
+      // proceed — the nudge should have centered the animal.
+      if (nudgeResult === "already-centered" || nudgeResult === "nudged") {
+        // Now attempt capture using lastTapWorld if available
+        const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
+        const captureRes = cameraCtrl.attemptCapture(...(tap as any));
 
-    // show flash immediately
-    renderer.triggerFlash();
+        // show flash immediately
+        renderer.triggerFlash();
 
-    if (captureRes && captureRes.polaroid) {
-      console.log('[main] captured', captureRes.name);
-      // suppress celebration until after polaroid is dismissed
-      renderer.suppressCelebration = true;
-      // ... rest of polaroid handling unchanged ...
-      setTimeout(() => {
-        pausedForPolaroid = true;
-        polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
-        polaroidUi['container'].addEventListener('click', () => {
-          pausedForPolaroid = false;
-          polaroidUi.hide();
-          renderer.suppressCelebration = false;
-          const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-          if (scene.allFound(objectiveAnimals)) {
-            confetti.burst(60);
-            confetti.startContinuous(6);
-            setTimeout(() => confetti.stop(), 2000);
-          }
-        }, { once: true });
-      }, 1000);
-    }
-    return;
-  }
-  });
+        if (captureRes && captureRes.polaroid) {
+          console.log("[main] captured", captureRes.name);
+          // suppress celebration until after polaroid is dismissed
+          renderer.suppressCelebration = true;
+          // ... rest of polaroid handling unchanged ...
+          setTimeout(() => {
+            pausedForPolaroid = true;
+            polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
+            polaroidUi["container"].addEventListener(
+              "click",
+              () => {
+                pausedForPolaroid = false;
+                polaroidUi.hide();
+                renderer.suppressCelebration = false;
+                const objectiveAnimals = scene.getAnimalsForObjective(
+                  renderer.currentObjective
+                );
+                if (scene.allFound(objectiveAnimals)) {
+                  confetti.burst(60);
+                  confetti.startContinuous(6);
+                  setTimeout(() => confetti.stop(), 2000);
+                }
+              },
+              { once: true }
+            );
+          }, 1000);
+        }
+        return;
+      }
+    });
 
     console.log("[main] scene ready", sceneName);
   } catch (err) {
@@ -322,14 +350,14 @@ async function init() {
 }
 
 // Toggle visual debug overlays with 'd' key: crosshair, mask, and transparent camera body
-window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'd') {
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() === "d") {
     if (renderer) {
       renderer.debug = !renderer.debug;
-      const frame = document.getElementById('camera-frame');
+      const frame = document.getElementById("camera-frame");
       if (frame) {
-        if (renderer.debug) frame.classList.add('debug-mode');
-        else frame.classList.remove('debug-mode');
+        if (renderer.debug) frame.classList.add("debug-mode");
+        else frame.classList.remove("debug-mode");
       }
       // if we have a camera controller, expose its aim tolerance for rendering
       if ((cameraCtrl as any) && renderer.debug) {
@@ -338,7 +366,7 @@ window.addEventListener('keydown', (e) => {
       } else {
         (renderer as any).debugTolerance = undefined;
       }
-      console.log('[main] debug mode', renderer.debug);
+      console.log("[main] debug mode", renderer.debug);
     }
   }
 });
@@ -372,7 +400,7 @@ function onCanvasClick(e: MouseEvent) {
 
   // store for shutter usage
   lastTapWorld = { x: worldX, y: worldY };
-  console.log('[main] onCanvasClick world coords', lastTapWorld);
+  console.log("[main] onCanvasClick world coords", lastTapWorld);
 
   if (
     worldX < 0 ||
@@ -391,7 +419,7 @@ function loop(ts: number) {
   lastTime = ts;
   // occasional tick log to confirm the RAF loop is running
   if (Math.floor(ts / 1000) % 5 === 0 && ts % 1000 < 32) {
-    console.log('[main] loop tick', { ts });
+    console.log("[main] loop tick", { ts });
   }
 
   if (!pausedForPolaroid) {
@@ -440,7 +468,7 @@ canvas.addEventListener("pointermove", (e) => {
 
   // debug log dragging deltas (backing px)
   if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
-    console.log('[main] dragging delta (backing px)', { dx, dy });
+    console.log("[main] dragging delta (backing px)", { dx, dy });
   }
 
   // convert screen delta to world delta and pan viewport

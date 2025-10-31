@@ -15,12 +15,15 @@ body {
   display: inline-block;
 }
 
-
 #camera-frame {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  background: linear-gradient(180deg, #2b2b2b 0%, #181818 100%); /* camera body feel */
+  background: linear-gradient(
+    180deg,
+    #2b2b2b 0%,
+    #181818 100%
+  ); /* camera body feel */
   padding: 18px; /* give some frame thickness */
   display: flex;
   gap: 12px;
@@ -29,17 +32,30 @@ body {
 
 /* visual hint when an auto-nudge is skipped: short friendly shake + pulse */
 @keyframes nudgeSkipShake {
-  0% { transform: translateX(0) scale(1); }
-  20% { transform: translateX(-6px) scale(0.995); }
-  40% { transform: translateX(6px) scale(0.998); }
-  60% { transform: translateX(-4px) scale(0.999); }
-  80% { transform: translateX(4px) scale(1.0); }
-  100% { transform: translateX(0) scale(1); }
+  0% {
+    transform: translateX(0) scale(1);
+  }
+  20% {
+    transform: translateX(-6px) scale(0.995);
+  }
+  40% {
+    transform: translateX(6px) scale(0.998);
+  }
+  60% {
+    transform: translateX(-4px) scale(0.999);
+  }
+  80% {
+    transform: translateX(4px) scale(1);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+  }
 }
 
 #camera-frame.nudge-skip {
-  animation: nudgeSkipShake 700ms cubic-bezier(.2,.9,.3,1);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45), 0 0 18px rgba(255,120,100,0.06) inset;
+  animation: nudgeSkipShake 700ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(255, 120, 100, 0.06) inset;
 }
 
 .camera-body-inner {
@@ -51,12 +67,16 @@ body {
 
 /* debug mode: make camera body mostly transparent so overlays are visible */
 #camera-frame.debug-mode {
-  background: linear-gradient(180deg, rgba(43,43,43,0.18) 0%, rgba(24,24,24,0.08) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(43, 43, 43, 0.18) 0%,
+    rgba(24, 24, 24, 0.08) 100%
+  );
 }
 
 #camera-frame.debug-mode .viewfinder .lens::before,
 #camera-frame.debug-mode .viewfinder .lens::after {
-  border-color: rgba(0,255,136,0.85);
+  border-color: rgba(0, 255, 136, 0.85);
 }
 
 canvas#game {
@@ -103,9 +123,9 @@ canvas#game {
 /* left bracket */
 .viewfinder .lens::before {
   left: 6%;
-  border-left: 6px solid rgba(255,255,255,0.95);
-  border-top: 6px solid rgba(255,255,255,0.95);
-  border-bottom: 6px solid rgba(255,255,255,0.95);
+  border-left: 6px solid rgba(255, 255, 255, 0.95);
+  border-top: 6px solid rgba(255, 255, 255, 0.95);
+  border-bottom: 6px solid rgba(255, 255, 255, 0.95);
   box-sizing: border-box;
   border-radius: 4px 0 0 4px;
 }
@@ -113,13 +133,12 @@ canvas#game {
 /* right bracket */
 .viewfinder .lens::after {
   right: 6%;
-  border-right: 6px solid rgba(255,255,255,0.95);
-  border-top: 6px solid rgba(255,255,255,0.95);
-  border-bottom: 6px solid rgba(255,255,255,0.95);
+  border-right: 6px solid rgba(255, 255, 255, 0.95);
+  border-top: 6px solid rgba(255, 255, 255, 0.95);
+  border-bottom: 6px solid rgba(255, 255, 255, 0.95);
   box-sizing: border-box;
   border-radius: 0 4px 4px 0;
 }
-
 
 #camera-hud {
   width: 140px;
@@ -128,7 +147,7 @@ canvas#game {
   align-items: center;
   gap: 10px;
   padding: 10px;
-  background: rgba(24,24,24,0.95); /* opaque camera body side panel */
+  background: rgba(24, 24, 24, 0.95); /* opaque camera body side panel */
   color: #fff;
   border-radius: 10px;
 }
@@ -141,7 +160,7 @@ canvas#game {
   right: 12px;
   top: 10px;
   z-index: 60; /* above HUD */
-  background: linear-gradient(180deg,#ffffff10,#00000020);
+  background: linear-gradient(180deg, #ffffff10, #00000020);
   border: none;
   color: #fff;
   font-size: 34px;
@@ -151,7 +170,7 @@ canvas#game {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
 }
 
 #camera-hud #hud-top button#back {
@@ -169,7 +188,7 @@ canvas#game {
   justify-content: center;
   width: 100%;
   height: 56px;
-  background: rgba(0,0,0,0.15);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 8px;
 }
 
@@ -186,20 +205,51 @@ canvas#game {
   padding: 8px;
   border-radius: 8px;
 }
-.scene-grid img { width: 100%; height: auto; display: block; border-radius: 4px; }
+.scene-grid img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
 
-.scene-card { cursor: pointer; display:flex; flex-direction:column; gap:8px; }
-.scene-title { font-weight:600; text-align:center; color:#fff; }
-.thumb-wrap { overflow: hidden; border-radius:6px; }
-.scene-thumb { width:100%; display:block; transition: filter .25s ease, transform .2s ease; }
-.scene-thumb.blurred { filter: blur(3px) brightness(.9); transform: scale(1.02); }
-.scene-card:hover .scene-thumb { filter: none; transform: scale(1); }
+.scene-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scene-title {
+  font-weight: 600;
+  text-align: center;
+  color: #fff;
+}
+.thumb-wrap {
+  overflow: hidden;
+  border-radius: 6px;
+}
+.scene-thumb {
+  width: 100%;
+  display: block;
+  transition: filter 0.25s ease, transform 0.2s ease;
+}
+.scene-thumb.blurred {
+  filter: blur(3px) brightness(0.9);
+  transform: scale(1.02);
+}
+.scene-card:hover .scene-thumb {
+  filter: none;
+  transform: scale(1);
+}
 
 @media (max-width: 800px) {
-  .scene-grid > div { width: calc(50% - 12px); }
+  .scene-grid > div {
+    width: calc(50% - 12px);
+  }
 }
 @media (max-width: 420px) {
-  .scene-grid > div { width: 100%; }
+  .scene-grid > div {
+    width: 100%;
+  }
 }
 
 #ui {
@@ -236,11 +286,11 @@ canvas#game {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 0 rgba(0,0,0,0.4);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.4);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 #ui button#shutter:active {
   transform: translateY(6px) scale(0.98);
-  box-shadow: 0 3px 0 rgba(0,0,0,0.3);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
 }

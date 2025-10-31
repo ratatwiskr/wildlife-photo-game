@@ -30,8 +30,8 @@ export class CameraController {
             // if animal is already within aim tolerance, do nothing
             const tol = this.aimAssist.getTolerance();
             if (Math.abs(deltaX) <= tol && Math.abs(deltaY) <= tol) {
-                console.log('[camera] nudge not needed (already within tolerance)');
-                resolve('already-centered');
+                console.log("[camera] nudge not needed (already within tolerance)");
+                resolve("already-centered");
                 return;
             }
             // enforce that the animal must be reasonably near the center before nudging
@@ -42,11 +42,19 @@ export class CameraController {
             const triggerFraction = 0.6; // change this to tune strictness (0.6 = 60%)
             const maxTrigger = Math.min(this.viewport.width, this.viewport.height) * triggerFraction;
             if (dist > maxTrigger) {
-                console.log('[camera] nudge skipped - target too far from center', { dist, maxTrigger });
-                resolve('skipped-too-far');
+                console.log("[camera] nudge skipped - target too far from center", {
+                    dist,
+                    maxTrigger,
+                });
+                resolve("skipped-too-far");
                 return;
             }
-            console.log('[camera] starting slow nudge to center', { deltaX, deltaY, duration, tol });
+            console.log("[camera] starting slow nudge to center", {
+                deltaX,
+                deltaY,
+                duration,
+                tol,
+            });
             const startX = this.viewport.x;
             const startY = this.viewport.y;
             // move by full delta so the animal becomes centered
@@ -61,8 +69,8 @@ export class CameraController {
                 if (t < 1)
                     requestAnimationFrame(step);
                 else {
-                    console.log('[camera] slow nudge complete');
-                    resolve('nudged');
+                    console.log("[camera] slow nudge complete");
+                    resolve("nudged");
                 }
             };
             requestAnimationFrame(step);
@@ -82,25 +90,27 @@ export class CameraController {
             return null;
         }
         const obj = (this.scene.definition.objectives || [])[0];
-        const animals = obj ? this.scene.getAnimalsForObjective(obj) : this.scene.definition.animals;
+        const animals = obj
+            ? this.scene.getAnimalsForObjective(obj)
+            : this.scene.definition.animals;
         const target = animals.find((a) => !a.found);
         if (!target)
             return null;
         // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
         if (!this.aimAssist.isAnimalInView(this.viewport, target)) {
-            console.log('[camera] target not in view; require nudge before capture');
+            console.log("[camera] target not in view; require nudge before capture");
             return null;
         }
         // sample at tap coords if provided, otherwise use viewport center
-        const sampleX = Math.round(tapWorldX ?? (this.viewport.x + this.viewport.width / 2));
-        const sampleY = Math.round(tapWorldY ?? (this.viewport.y + this.viewport.height / 2));
+        const sampleX = Math.round(tapWorldX ?? this.viewport.x + this.viewport.width / 2);
+        const sampleY = Math.round(tapWorldY ?? this.viewport.y + this.viewport.height / 2);
         try {
-            const tmp = document.createElement('canvas');
+            const tmp = document.createElement("canvas");
             tmp.width = this.scene.mask.width;
             tmp.height = this.scene.mask.height;
-            const tctx = tmp.getContext('2d', { willReadFrequently: true });
+            const tctx = tmp.getContext("2d", { willReadFrequently: true });
             if (!tctx) {
-                console.log('[camera] no 2d context for mask');
+                console.log("[camera] no 2d context for mask");
                 this.cooldown.trigger();
                 return null;
             }
@@ -127,18 +137,18 @@ export class CameraController {
             const top = Math.max(0, Math.floor((animal.y ?? 0) - (animal.radius ?? 30) - pad));
             const w = Math.min(this.scene.image.width - left, Math.floor((animal.radius ?? 30) * 2 + pad * 2));
             const h = Math.min(this.scene.image.height - top, Math.floor((animal.radius ?? 30) * 2 + pad * 3));
-            const pol = document.createElement('canvas');
+            const pol = document.createElement("canvas");
             pol.width = w + 40; // white border
             pol.height = h + 80; // larger bottom border
-            const pctx = pol.getContext('2d');
+            const pctx = pol.getContext("2d");
             if (pctx) {
                 // white polaroid background
-                pctx.fillStyle = '#fff';
+                pctx.fillStyle = "#fff";
                 pctx.fillRect(0, 0, pol.width, pol.height);
                 // draw image cutout centered with small inner margin
                 pctx.drawImage(this.scene.image, left, top, w, h, 20, 20, w, h);
                 // optional: add subtle shadow
-                pctx.strokeStyle = 'rgba(0,0,0,0.08)';
+                pctx.strokeStyle = "rgba(0,0,0,0.08)";
                 pctx.strokeRect(10, 10, w + 20, h + 20);
             }
             this.cooldown.trigger();
@@ -146,7 +156,7 @@ export class CameraController {
             return { name: foundName, polaroid: pol };
         }
         catch (e) {
-            console.error('[camera] capture failed', e);
+            console.error("[camera] capture failed", e);
             this.cooldown.trigger();
             return null;
         }

@@ -11,8 +11,8 @@ export class AimAssist {
   private tolerance: number;
 
   constructor(tolerancePx: number = 200) {
-  // increased default tolerance to make development easier during dev
-  this.tolerance = tolerancePx;
+    // increased default tolerance to make development easier during dev
+    this.tolerance = tolerancePx;
   }
 
   // expose tolerance for debug visuals
@@ -43,17 +43,23 @@ export class AimAssist {
    * Returns true if any part of the animal is visible in viewport
    */
   isAnimalInView(viewport: Viewport, animal: Animal): boolean {
-  if (animal.x == null || animal.y == null || animal.radius == null) return false;
-  const ax = animal.x;
-  const ay = animal.y;
-  const r = animal.radius;
-  // check if bounding box of animal intersects viewport
-  const left = ax - r;
-  const right = ax + r;
-  const top = ay - r;
-  const bottom = ay + r;
+    if (animal.x == null || animal.y == null || animal.radius == null)
+      return false;
+    const ax = animal.x;
+    const ay = animal.y;
+    const r = animal.radius;
+    // check if bounding box of animal intersects viewport
+    const left = ax - r;
+    const right = ax + r;
+    const top = ay - r;
+    const bottom = ay + r;
 
-  return !(right < viewport.x || left > viewport.x + viewport.width || bottom < viewport.y || top > viewport.y + viewport.height);
+    return !(
+      right < viewport.x ||
+      left > viewport.x + viewport.width ||
+      bottom < viewport.y ||
+      top > viewport.y + viewport.height
+    );
   }
 
   /**
