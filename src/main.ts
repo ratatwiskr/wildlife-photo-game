@@ -481,24 +481,64 @@ function loop(ts: number) {
 }
 
 function populateSceneSelect() {
-  const choices = [
-    "jungle_adventure",
-    "jungle_adventure_with_sun",
-    "savanna",
-    "arctic",
-  ];
-  for (const s of choices) {
-    const o = document.createElement("option");
-    o.value = s;
-    o.textContent = s;
-    sceneSelect.appendChild(o);
-  }
-  const current = new URLSearchParams(window.location.search).get("scene");
-  if (current) sceneSelect.value = current;
-  sceneSelect.addEventListener("change", () => {
-    const v = sceneSelect.value;
-    window.location.search = `?scene=${v}`;
-  });
+  // Dynamically populate the HUD select with available scenes found in
+  // assets/scenes/ (skips templates and incomplete scenes missing image/mask).
+  (async () => {
+    sceneSelect.innerHTML = "";
+    const current = new URLSearchParams(globalThis.location.search).get(
+      "scene"
+    );
+    try {
+      const dirRes = await fetch(`${basePath}/assets/scenes/`);
+      if (!dirRes.ok) return;
+      const text = await dirRes.text();
+      const re = /href\s*=\s*"([^"]+\.json)"/g;
+      const names = new Set<string>();
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text))) {
+        const href = m[1];
+        if (/\/template\//i.test(href) || /^template\//i.test(href)) continue;
+        const base = href.replace(/\.json$/, "").replace(/.*\//, "");
+        names.add(base);
+      }
+
+      for (const name of names) {
+        try {
+          const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
+          if (!jres.ok) continue;
+          const def = await jres.json();
+          const imgPath = def.image
+            ? `${basePath}/assets/scenes/${def.image}`
+            : `${basePath}/assets/scenes/${name}.jpg`;
+          const maskPath = `${basePath}/assets/scenes/${name}_mask.png`;
+          const [imgRes, maskRes] = await Promise.all([
+            fetch(imgPath, { method: "GET" }),
+            fetch(maskPath, { method: "GET" }),
+          ]);
+          if (!imgRes.ok || !maskRes.ok) continue;
+
+          const o = document.createElement("option");
+          o.value = name;
+          // prettify label (Jungle Adventure instead of jungle_adventure)
+          o.textContent = name
+            .replaceAll("_", " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          sceneSelect.appendChild(o);
+        } catch (e) {
+          // skip problematic entries
+          continue;
+        }
+      }
+
+      if (current) sceneSelect.value = current;
+      sceneSelect.addEventListener("change", () => {
+        const v = sceneSelect.value;
+        globalThis.location.search = `?scene=${v}`;
+      });
+    } catch (e) {
+      console.warn("[main] populateSceneSelect failed", e);
+    }
+  })();
 }
 
 canvas.addEventListener("pointerdown", (e) => {
