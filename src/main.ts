@@ -51,6 +51,66 @@ async function init() {
     }
   }
 
+  // helper: Fisher-Yates shuffle (keep in outer scope to satisfy linter)
+  function shuffleArray<T>(arr: T[]) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+
+  // objective progress UI updater (top-right of camera frame)
+  function updateObjectiveProgress() {
+    const frame = document.getElementById("camera-frame");
+    if (!frame || !scene) return;
+    let prog = document.getElementById("objectiveProgress");
+    if (!prog) {
+      prog = document.createElement("div");
+      prog.id = "objectiveProgress";
+      prog.style.position = "absolute";
+      prog.style.top = "8px";
+      prog.style.right = "8px";
+      prog.style.zIndex = "70";
+      prog.style.display = "flex";
+      prog.style.gap = "6px";
+      prog.style.alignItems = "center";
+      prog.style.padding = "6px";
+      prog.style.background = "rgba(0,0,0,0.18)";
+      prog.style.borderRadius = "8px";
+      prog.style.backdropFilter = "blur(4px)";
+      prog.style.color = "#fff";
+      prog.style.fontSize = "18px";
+      frame.appendChild(prog);
+    }
+
+    prog.innerHTML = "";
+    const objectives = scene.definition.objectives || [];
+    for (const obj of objectives) {
+      const span = document.createElement("span");
+      const objs = scene.getObjectsForObjective(obj);
+      const done = scene.allFound(objs);
+      span.textContent = `${done ? "✅➜ " : ""}${
+        obj.emoji || obj.title || "📍"
+      }`;
+      span.style.opacity = done ? "1" : "0.6";
+      if (
+        !done &&
+        renderer &&
+        renderer.currentObjective &&
+        renderer.currentObjective.title === obj.title
+      ) {
+        span.style.outline = "2px solid rgba(255,255,255,0.12)";
+        span.style.padding = "2px 6px";
+        span.style.borderRadius = "6px";
+      }
+      prog.appendChild(span);
+    }
+  }
+
   // initial resize and on window resize
   resizeCanvasToDisplaySize();
   window.addEventListener("resize", () => {
@@ -74,13 +134,34 @@ async function init() {
     if (!res.ok) throw new Error(`Failed to load ${defUrl}`);
     const def = await res.json();
 
+    if (
+      def.objectives &&
+      Array.isArray(def.objectives) &&
+      def.objectives.length > 1
+    ) {
+      def.objectives = shuffleArray(def.objectives);
+    }
+
     // instantiate and initialize scene
     scene = new Scene(def);
     await scene.loadImages(); // load images
     scene.extractPositionsFromMask(); // compute centroids
 
     renderer.setScene(scene);
-    renderer.currentObjective = def.objectives?.[0];
+    // renderer.currentObjective expects a single-tag shape; map the scene definition
+    // objective (which may have `tags[]`) to the renderer's expected form.
+    if (def.objectives && def.objectives[0]) {
+      const first = def.objectives[0];
+      const tag =
+        first.tags && first.tags.length ? first.tags[0] : first.tag || "";
+      renderer.currentObjective = {
+        title: first.title,
+        tag,
+        emoji: first.emoji,
+      };
+    } else {
+      renderer.currentObjective = undefined;
+    }
     // update DOM HUD objective emoji/title
     const objEl = document.getElementById("objective");
     if (objEl && def.objectives && def.objectives[0]) {
@@ -103,6 +184,9 @@ async function init() {
       "sceneSelect"
     ) as HTMLSelectElement | null;
     if (sceneSelectEl2) sceneSelectEl2.value = name;
+
+    // update progress immediately
+    updateObjectiveProgress();
   }
 
   try {
@@ -308,21 +392,26 @@ async function init() {
         return;
       }
 
-      // Log objectives and status
+      // Log objectives and status (support both `tag` and `tags[]` fields)
       const objectives = scene.definition.objectives || [];
       console.log(
         "[main] objectives",
         objectives.map((o) => ({
           emoji: o.emoji || o.title,
-          tag: o.tag,
+          tag: o.tag || (o.tags && o.tags[0]) || undefined,
           found: scene.getObjectsForObjective(o).filter((a) => a.found).length,
         }))
       );
 
       // pick next unfound target for current objective
-      const obj = scene.definition.objectives?.[0];
+      // Use the renderer's currentObjective when present (reflects progression),
+      // otherwise fall back to the first defined objective.
+      const obj = (renderer && renderer.currentObjective) as any;
+      const fallback = scene.definition.objectives?.[0];
       const objects = obj
         ? scene.getObjectsForObjective(obj)
+        : fallback
+        ? scene.getObjectsForObjective(fallback)
         : scene.definition.objects;
       const target = objects.find((a) => !a.found);
       if (!target) {
@@ -352,9 +441,26 @@ async function init() {
       // If already centered, proceed to attempt capture. If we actually nudged, we also
       // proceed — the nudge should have centered the animal.
       if (nudgeResult === "already-centered" || nudgeResult === "nudged") {
-        // Now attempt capture using lastTapWorld if available
-        const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
-        const captureRes = cameraCtrl.attemptCapture(...(tap as any));
+        // Now attempt capture using lastTapWorld if available and valid; otherwise
+        // let the controller sample from the viewport center by passing undefined.
+        let tapX: number | undefined = undefined;
+        let tapY: number | undefined = undefined;
+        if (
+          lastTapWorld &&
+          scene &&
+          lastTapWorld.x >= 0 &&
+          lastTapWorld.y >= 0 &&
+          lastTapWorld.x < scene.mask.width &&
+          lastTapWorld.y < scene.mask.height
+        ) {
+          tapX = lastTapWorld.x;
+          tapY = lastTapWorld.y;
+        }
+        const captureRes = cameraCtrl.attemptCapture(
+          tapX,
+          tapY,
+          (renderer as any).currentObjective
+        );
 
         // show flash immediately
         renderer.triggerFlash();
@@ -373,13 +479,59 @@ async function init() {
                 pausedForPolaroid = false;
                 polaroidUi.hide();
                 renderer.suppressCelebration = false;
-                const objectiveObjects = scene.getObjectsForObjective(
-                  renderer.currentObjective
-                );
-                if (scene.allFound(objectiveObjects)) {
-                  confetti.burst(60);
-                  confetti.startContinuous(6);
-                  setTimeout(() => confetti.stop(), 2000);
+
+                // After a successful capture, check whether the current objective
+                // is now complete. If so, advance to the next objective (if any).
+                // Only when all objectives are complete do we show confetti.
+                try {
+                  const objectives = scene.definition.objectives || [];
+                  // Determine index of current objective in the scene definition
+                  let currentIndex = objectives.findIndex(
+                    (o) => o === renderer.currentObjective
+                  );
+                  if (currentIndex < 0) currentIndex = 0;
+
+                  const currentObj = objectives[currentIndex];
+                  const objectiveObjects =
+                    scene.getObjectsForObjective(currentObj);
+
+                  if (scene.allFound(objectiveObjects)) {
+                    // If there is another objective after this one, advance to it
+                    if (currentIndex + 1 < objectives.length) {
+                      const nextObj = objectives[currentIndex + 1];
+                      const nextTag =
+                        nextObj.tags && nextObj.tags.length
+                          ? nextObj.tags[0]
+                          : nextObj.tag || "";
+                      renderer.currentObjective = {
+                        title: nextObj.title,
+                        tag: nextTag,
+                        emoji: nextObj.emoji,
+                      };
+                      // update HUD objective emoji/title
+                      const objEl = document.getElementById("objective");
+                      if (objEl && nextObj) {
+                        objEl.textContent =
+                          nextObj.emoji || nextObj.title || "📍";
+                      }
+                      // don't celebrate yet; wait until final objective completed
+                      console.log(
+                        "[main] objective completed, advanced to next",
+                        nextObj
+                      );
+                      // refresh top-right progress UI
+                      updateObjectiveProgress();
+                    } else {
+                      // last objective completed — celebrate
+                      confetti.burst(60);
+                      confetti.startContinuous(6);
+                      setTimeout(() => confetti.stop(), 2000);
+                      // final update of progress UI
+                      updateObjectiveProgress();
+                    }
+                  }
+                } catch (e) {
+                  console.error("Error advancing objectives", e);
                 }
               },
               { once: true }

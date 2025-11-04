@@ -98,15 +98,17 @@ export class CameraController {
    */
   attemptCapture(
     tapWorldX?: number,
-    tapWorldY?: number
+    tapWorldY?: number,
+    objective?: any
   ): { name: string; polaroid?: HTMLCanvasElement } | null {
-    console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
+    console.log("[camera] attemptCapture", { tapWorldX, tapWorldY, objective });
     if (this.cooldown.isActive()) {
       console.log("[camera] cooldown active");
       return null;
     }
 
-    const obj = (this.scene.definition.objectives || [])[0];
+    // Use provided objective if available (main may pass renderer.currentObjective)
+    const obj = objective ?? (this.scene.definition.objectives || [])[0];
     const objects = obj
       ? this.scene.getObjectsForObjective(obj)
       : this.scene.definition.objects;
@@ -146,13 +148,63 @@ export class CameraController {
       const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
       const p = imgData?.data;
       if (!p) {
-        console.log("[camera] no pixel data at sample");
+        console.log("[camera] no pixel data at sample", { sampleX, sampleY });
         this.cooldown.trigger();
         return null;
       }
-      const hex = (this.scene.constructor as any).rgbToHex(p[0], p[1], p[2]);
-      console.log("[camera] sampled hex", hex);
-      const foundName = this.scene.markFoundByColor(hex);
+      // if pixel is fully transparent or black, attempt a small local search
+      const tryHex = (r: number, g: number, b: number) =>
+        (this.scene.constructor as any).rgbToHex(r, g, b);
+
+      let hex = tryHex(p[0], p[1], p[2]);
+      const alpha = p[3] ?? 255;
+      console.log("[camera] sampled", {
+        sampleX,
+        sampleY,
+        rgba: [p[0], p[1], p[2], alpha],
+      });
+
+      let foundName = null as string | null;
+      if (alpha === 0 || hex === "#000000") {
+        // search nearby pixels in an expanding square for a non-transparent color
+        const radius = 12; // pixels
+        const w = tmp.width;
+        const h = tmp.height;
+        const counts = new Map<string, number>();
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const sx = sampleX + dx;
+            const sy = sampleY + dy;
+            if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+            const d = tctx.getImageData(sx, sy, 1, 1).data;
+            if (!d) continue;
+            if ((d[3] ?? 255) === 0) continue;
+            const hcol = tryHex(d[0], d[1], d[2]);
+            if (hcol === "#000000") continue;
+            counts.set(hcol, (counts.get(hcol) || 0) + 1);
+          }
+        }
+        if (counts.size > 0) {
+          // pick the most common nearby color
+          let best = "";
+          let bestCount = 0;
+          for (const [k, v] of counts) {
+            if (v > bestCount) {
+              best = k;
+              bestCount = v;
+            }
+          }
+          hex = best;
+          console.log("[camera] nearby color found", hex, bestCount);
+          foundName = this.scene.markFoundByColor(hex);
+        }
+      } else {
+        console.log("[camera] sampled hex", hex);
+        foundName = this.scene.markFoundByColor(hex);
+      }
+
+      // TODO: update / review following method code, does this work with above additions about provided objective?
+
       if (!foundName) {
         console.log("[camera] nothing found for hex", hex);
         this.cooldown.trigger();
