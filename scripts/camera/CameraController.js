@@ -83,21 +83,22 @@ export class CameraController {
      * Attempt capture. Returns an object when an animal was photographed:
      * { name, imageCanvas } where imageCanvas is a cutout polaroid-like canvas.
      */
-    attemptCapture(tapWorldX, tapWorldY) {
-        console.log("[camera] attemptCapture", { tapWorldX, tapWorldY });
+    attemptCapture(tapWorldX, tapWorldY, objective) {
+        console.log("[camera] attemptCapture", { tapWorldX, tapWorldY, objective });
         if (this.cooldown.isActive()) {
             console.log("[camera] cooldown active");
             return null;
         }
-        const obj = (this.scene.definition.objectives || [])[0];
-        const animals = obj
-            ? this.scene.getAnimalsForObjective(obj)
-            : this.scene.definition.animals;
-        const target = animals.find((a) => !a.found);
+        // Use provided objective if available (main may pass renderer.currentObjective)
+        const obj = objective ?? (this.scene.definition.objectives || [])[0];
+        const objects = obj
+            ? this.scene.getObjectsForObjective(obj)
+            : this.scene.definition.objects;
+        const target = objects.find((a) => !a.found);
         if (!target)
             return null;
         // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
-        if (!this.aimAssist.isAnimalInView(this.viewport, target)) {
+        if (!this.aimAssist.isObjectInView(this.viewport, target)) {
             console.log("[camera] target not in view; require nudge before capture");
             return null;
         }
@@ -118,25 +119,75 @@ export class CameraController {
             const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
             const p = imgData?.data;
             if (!p) {
-                console.log("[camera] no pixel data at sample");
+                console.log("[camera] no pixel data at sample", { sampleX, sampleY });
                 this.cooldown.trigger();
                 return null;
             }
-            const hex = this.scene.constructor.rgbToHex(p[0], p[1], p[2]);
-            console.log("[camera] sampled hex", hex);
-            const foundName = this.scene.markFoundByColor(hex);
+            // if pixel is fully transparent or black, attempt a small local search
+            const tryHex = (r, g, b) => this.scene.constructor.rgbToHex(r, g, b);
+            let hex = tryHex(p[0], p[1], p[2]);
+            const alpha = p[3] ?? 255;
+            console.log("[camera] sampled", {
+                sampleX,
+                sampleY,
+                rgba: [p[0], p[1], p[2], alpha],
+            });
+            let foundName = null;
+            if (alpha === 0 || hex === "#000000") {
+                // search nearby pixels in an expanding square for a non-transparent color
+                const radius = 12; // pixels
+                const w = tmp.width;
+                const h = tmp.height;
+                const counts = new Map();
+                for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const sx = sampleX + dx;
+                        const sy = sampleY + dy;
+                        if (sx < 0 || sy < 0 || sx >= w || sy >= h)
+                            continue;
+                        const d = tctx.getImageData(sx, sy, 1, 1).data;
+                        if (!d)
+                            continue;
+                        if ((d[3] ?? 255) === 0)
+                            continue;
+                        const hcol = tryHex(d[0], d[1], d[2]);
+                        if (hcol === "#000000")
+                            continue;
+                        counts.set(hcol, (counts.get(hcol) || 0) + 1);
+                    }
+                }
+                if (counts.size > 0) {
+                    // pick the most common nearby color
+                    let best = "";
+                    let bestCount = 0;
+                    for (const [k, v] of counts) {
+                        if (v > bestCount) {
+                            best = k;
+                            bestCount = v;
+                        }
+                    }
+                    hex = best;
+                    console.log("[camera] nearby color found", hex, bestCount);
+                    foundName = this.scene.markFoundByColor(hex);
+                }
+            }
+            else {
+                console.log("[camera] sampled hex", hex);
+                foundName = this.scene.markFoundByColor(hex);
+            }
+            // TODO: update / review following method code, does this work with above additions about provided objective?
             if (!foundName) {
                 console.log("[camera] nothing found for hex", hex);
                 this.cooldown.trigger();
                 return null;
             }
             // build polaroid canvas: cut bounding box from scene.image using mask
-            const animal = this.scene.definition.animals.find((a) => a.name === foundName);
+            const objDef = this.scene.definition.objects.find((a) => a.name === foundName);
             const pad = 12;
-            const left = Math.max(0, Math.floor((animal.x ?? 0) - (animal.radius ?? 30) - pad));
-            const top = Math.max(0, Math.floor((animal.y ?? 0) - (animal.radius ?? 30) - pad));
-            const w = Math.min(this.scene.image.width - left, Math.floor((animal.radius ?? 30) * 2 + pad * 2));
-            const h = Math.min(this.scene.image.height - top, Math.floor((animal.radius ?? 30) * 2 + pad * 3));
+            const left = Math.max(0, Math.floor((objDef.x ?? 0) - (objDef.radius ?? 30) - pad));
+            const top = Math.max(0, Math.floor((objDef.y ?? 0) - (objDef.radius ?? 30) - pad));
+            const w = Math.min(this.scene.image.width - left, Math.floor((objDef.radius ?? 30) * 2 + pad * 2));
+            const h = Math.min(this.scene.image.height - top, Math.floor((objDef.radius ?? 30) * 2 + pad * 3));
             const pol = document.createElement("canvas");
             pol.width = w + 40; // white border
             pol.height = h + 80; // larger bottom border

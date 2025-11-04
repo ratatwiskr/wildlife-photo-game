@@ -1,7 +1,7 @@
 # 🦁 Wildlife Photo / Wimmelbild Game
 
 **Project goal:**
-A tablet-friendly *photo hunt game* for children (2–6), now extensible to “wimmelbild”-style tasks: find animals, planes, or other objects. Supports real photos or illustrations.
+A tablet-friendly _photo hunt game_ for children (2–6), now extensible to “wimmelbild”-style tasks: find objects like animals, planes, or other items. Supports real photos or illustrations.
 
 Players **pan/drag** or use a stylus to find objects in a scene and tap/click to capture them.
 
@@ -21,7 +21,7 @@ Players **pan/drag** or use a stylus to find objects in a scene and tap/click to
 │   └── input.ts
 ├── scripts/               # compiled JS output
 ├── assets/
-│   ├── animals/*.svg
+│   ├── objects/*.svg
 │   ├── backgrounds/*.svg or .jpg
 │   └── icons/*.svg
 ├── scenes/
@@ -38,48 +38,57 @@ Players **pan/drag** or use a stylus to find objects in a scene and tap/click to
 
 ## ⚙️ Scene Naming Conventions
 
-* **Base name** of scene files (jpg, png, json) must match exactly.
-* **File suffixes**:
+- **Base name** of scene files (jpg, png, json) must match exactly.
+- **File suffixes**:
 
-  * `.jpg` → panorama / illustration
-  * `_mask.png` → color-coded overlay
-  * `.json` → scene definition
-* **Example**:
+  - `.jpg` → panorama / illustration
+  - `_mask.png` → color-coded overlay
+  - `.json` → scene definition
+
+- **Example**:
 
   ```
   jungle_adventure.jpg
   jungle_adventure_mask.png
   jungle_adventure.json
   ```
-* **Identifiers** for objects are **unique names**:
 
-  * elephant1, elephant2, lion1
-  * Avoid duplicates; any type of object (planes, trees, toys…) is allowed.
-* The validator checks for:
+- **Identifiers** for objects are **unique names**:
 
-  * Missing masks or JSON
-  * Duplicate object identifiers
-  * Scene image & mask dimension mismatches
+  - elephant1, elephant2, lion1
+  - Avoid duplicates; any type of object (planes, trees, toys…) is allowed.
+
+- The validator checks for:
+
+  - Missing masks or JSON
+  - Duplicate object identifiers
+  - Scene image & mask dimension mismatches
 
 ---
 
 ## 📝 Scene JSON Structure
 
-```ts
+```json
 {
   "name": "jungle_adventure",
+  "sceneType": "wimmelbild", // or "photo"
   "objects": [
-    { "id": "elephant1", "tags": ["elephant"], "found": false },
-    { "id": "lion1",     "tags": ["lion"],     "found": false }
+    {
+      "name": "elephant1",
+      "color": "#ff0000",
+      "tags": ["elephant"],
+      "found": false
+    },
+    { "name": "lion1", "color": "#00ff00", "tags": ["lion"], "found": false }
   ],
   "objectives": [
     { "title": "Find all 🐘", "tags": ["elephant"], "emoji": "🐘" },
-    { "title": "Find all 🦁", "tags": ["lion"],     "emoji": "🦁" }
+    { "title": "Find all 🦁", "tags": ["lion"], "emoji": "🦁" }
   ]
 }
 ```
 
-> **Note:** `id` must be unique. Tags group objects per task. `emoji` is shown for pre-readers.
+> **Note:** `name` must be unique. `sceneType` selects interaction mode: "photo" for camera-style capture, "wimmelbild" for direct object clicks. `color` must match the mask PNG color for that object.
 
 ---
 
@@ -105,11 +114,11 @@ flowchart TD
 
 ## 🛠️ Developer Notes
 
-* Modular TS code: `SceneRenderer`, `Scene`, `Input`, `Config`.
-* **Mask-based detection**: allows using any image / illustration without hardcoding positions.
-* Supports multiple sequential objectives in the same scene.
-* Unique object IDs allow grouping and tracking progress.
-* Camera / drag mechanics fully abstracted from scene content.
+- Modular TS code: `SceneRenderer`, `Scene`, `Input`, `Config`.
+- **Mask-based detection**: allows using any image / illustration without hardcoding positions.
+- Supports multiple sequential objectives in the same scene.
+- Unique object IDs allow grouping and tracking progress.
+- Camera / drag mechanics fully abstracted from scene content.
 
 ---
 
@@ -146,8 +155,8 @@ jobs:
       - run: npm run validate:scenes
 ```
 
-* Validator is **read-only**, fails CI if any scene is invalid.
-* Can be executed locally:
+- Validator is **read-only**, fails CI if any scene is invalid.
+- Can be executed locally:
 
   ```bash
   npm run validate:scenes
@@ -163,10 +172,11 @@ npm run build
 npm run serve # or npx http-server .
 ```
 
-* Open on tablet: `http://<local-ip>:8080`
-* CI/CD deploys to GitHub Pages automatically.
+- Open on tablet: `http://<local-ip>:8080`
+- CI/CD deploys to GitHub Pages automatically.
 
 ### Quick setup for Volta on Ubuntu
+
 ```bash
 # remove old nodejs/npm
 sudo apt remove nodejs npm -y
@@ -187,8 +197,8 @@ npm -v
 
 ## 💡 Extending to Wimmelbilder
 
-* Any type of object can be added: planes, toys, soccer balls, etc.
-* Tasks are just **objective groups** with tags.
-* Mask image color codes track hits.
-* Drag-to-find replaces camera if needed.
-* Supports multiple sequential objectives in a single scene.
+- Any type of object can be added: planes, toys, soccer balls, etc.
+- Tasks are just **objective groups** with tags.
+- Mask image color codes track hits.
+- Drag-to-find replaces camera if needed.
+- Supports multiple sequential objectives in a single scene.

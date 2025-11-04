@@ -68,10 +68,23 @@ for (const base of listSceneBases()) {
 
   const data = JSON.parse(fs.readFileSync(json, "utf8"));
 
+  // Validate presence of sceneType
+  if (!data.sceneType || !["photo", "wimmelbild"].includes(data.sceneType)) {
+    logError(
+      `${base}: Missing or invalid "sceneType" (expected "photo" or "wimmelbild")`
+    );
+    continue;
+  }
+
   const colorsFromMask: Set<string> = loadMaskColors(mask);
+  // Use canonical "objects" key
+  const items = Array.isArray(data.objects) ? data.objects : [];
+
   const colorsFromJson: Set<string> = new Set(
-    (data.animals || [])
-      .map((a: { color: string }) => (a.color ? a.color.toUpperCase() : ""))
+    items
+      .map((a: { color: string }) =>
+        a.color ? String(a.color).toUpperCase() : ""
+      )
       .filter((c: string) => !!c)
   );
 
@@ -81,7 +94,9 @@ for (const base of listSceneBases()) {
     }
   }
 
-  logOk(`${base}: validated (${colorsFromJson.size} entities)`);
+  logOk(
+    `${base}: validated (${colorsFromJson.size} entities, type=${data.sceneType})`
+  );
 }
 
 if (hasErrors) {

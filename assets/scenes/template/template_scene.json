@@ -2,6 +2,9 @@
   // Unique scene name — must match JPG and PNG base filenames.
   "name": "template_scene",
 
+  // sceneType: "photo" (camera-based) or "wimmelbild" (direct-click search)
+  "sceneType": "wimmelbild",
+
   // List of discoverable objects.
   "objects": [
     {
@@ -13,8 +16,8 @@
       "color": "#ff0000",
 
       // Tags define logical categories or objective groups.
-      // Example: ["animal"], ["bird"], ["vehicle"], ["tree"]
-      "tags": ["animal"]
+      // Example: ["object"], ["bird"], ["vehicle"], ["tree"]
+      "tags": ["object"]
     }
   ],
 
@@ -22,8 +25,9 @@
   "objectives": [
     {
       // Displayed to adult or in icon form to player
-      "title": "Find all animals 🦓",
-      "tag": "animal"
+      "title": "Find all objects 🦓",
+      "tags": ["object"],
+      "emoji": "🦓"
     }
   ]
 }

@@ -1,6 +1,7 @@
 {
   "name": "jungle_adventure_with_sun",
-  "animals": [
+  "sceneType": "photo",
+  "objects": [
     { "name": "lion1", "color": "#00ff00", "tags": ["lion"], "found": false },
     { "name": "sun", "color": "#e9ff00", "tags": ["sun"], "found": false }
   ],

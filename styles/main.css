@@ -233,11 +233,11 @@ canvas#game {
   transition: filter 0.25s ease, transform 0.2s ease;
 }
 .scene-thumb.blurred {
-  filter: blur(3px) brightness(0.9);
-  transform: scale(1.02);
+  filter: blur(30px) brightness(0.8);
+  transform: scale(1.1);
 }
 .scene-card:hover .scene-thumb {
-  filter: none;
+  filter: blur(30px) brightness(1);
   transform: scale(1);
 }
 

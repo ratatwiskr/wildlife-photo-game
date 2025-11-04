@@ -44,6 +44,60 @@ async function init() {
             canvas.height = h;
         }
     }
+    // helper: Fisher-Yates shuffle (keep in outer scope to satisfy linter)
+    function shuffleArray(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = a[i];
+            a[i] = a[j];
+            a[j] = tmp;
+        }
+        return a;
+    }
+    // objective progress UI updater (top-right of camera frame)
+    function updateObjectiveProgress() {
+        const frame = document.getElementById("camera-frame");
+        if (!frame || !scene)
+            return;
+        let prog = document.getElementById("objectiveProgress");
+        if (!prog) {
+            prog = document.createElement("div");
+            prog.id = "objectiveProgress";
+            prog.style.position = "absolute";
+            prog.style.top = "8px";
+            prog.style.right = "8px";
+            prog.style.zIndex = "70";
+            prog.style.display = "flex";
+            prog.style.gap = "6px";
+            prog.style.alignItems = "center";
+            prog.style.padding = "6px";
+            prog.style.background = "rgba(0,0,0,0.18)";
+            prog.style.borderRadius = "8px";
+            prog.style.backdropFilter = "blur(4px)";
+            prog.style.color = "#fff";
+            prog.style.fontSize = "18px";
+            frame.appendChild(prog);
+        }
+        prog.innerHTML = "";
+        const objectives = scene.definition.objectives || [];
+        for (const obj of objectives) {
+            const span = document.createElement("span");
+            const objs = scene.getObjectsForObjective(obj);
+            const done = scene.allFound(objs);
+            span.textContent = `${done ? "✅➜ " : ""}${obj.emoji || obj.title || "📍"}`;
+            span.style.opacity = done ? "1" : "0.6";
+            if (!done &&
+                renderer &&
+                renderer.currentObjective &&
+                renderer.currentObjective.title === obj.title) {
+                span.style.outline = "2px solid rgba(255,255,255,0.12)";
+                span.style.padding = "2px 6px";
+                span.style.borderRadius = "6px";
+            }
+            prog.appendChild(span);
+        }
+    }
     // initial resize and on window resize
     resizeCanvasToDisplaySize();
     window.addEventListener("resize", () => {
@@ -57,18 +111,38 @@ async function init() {
     populateSceneSelect();
     const params = new URLSearchParams(window.location.search);
     const sceneName = params.get("scene") || "jungle_adventure";
-    try {
-        const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+    // centralized scene loader so we can load without a full page reload
+    async function loadSceneByName(name) {
+        const defUrl = `${basePath}/assets/scenes/${name}.json`;
         console.log("[main] loading", defUrl);
         const res = await fetch(defUrl);
         if (!res.ok)
             throw new Error(`Failed to load ${defUrl}`);
         const def = await res.json();
+        if (def.objectives &&
+            Array.isArray(def.objectives) &&
+            def.objectives.length > 1) {
+            def.objectives = shuffleArray(def.objectives);
+        }
+        // instantiate and initialize scene
         scene = new Scene(def);
         await scene.loadImages(); // load images
         scene.extractPositionsFromMask(); // compute centroids
         renderer.setScene(scene);
-        renderer.currentObjective = def.objectives?.[0];
+        // renderer.currentObjective expects a single-tag shape; map the scene definition
+        // objective (which may have `tags[]`) to the renderer's expected form.
+        if (def.objectives && def.objectives[0]) {
+            const first = def.objectives[0];
+            const tag = first.tags && first.tags.length ? first.tags[0] : first.tag || "";
+            renderer.currentObjective = {
+                title: first.title,
+                tag,
+                emoji: first.emoji,
+            };
+        }
+        else {
+            renderer.currentObjective = undefined;
+        }
         // update DOM HUD objective emoji/title
         const objEl = document.getElementById("objective");
         if (objEl && def.objectives && def.objectives[0]) {
@@ -80,6 +154,19 @@ async function init() {
         const sceneSelectEl = document.getElementById("sceneSelect");
         if (sceneSelectEl)
             sceneSelectEl.style.display = "none";
+        // wire camera controller for the newly loaded scene
+        if (renderer.viewport) {
+            cameraCtrl = new CameraController(scene, renderer.viewport);
+        }
+        // update select value so UI reflects current scene
+        const sceneSelectEl2 = document.getElementById("sceneSelect");
+        if (sceneSelectEl2)
+            sceneSelectEl2.value = name;
+        // update progress immediately
+        updateObjectiveProgress();
+    }
+    try {
+        await loadSceneByName(sceneName);
         // setup back button to show a simple scene picker draft
         const backBtn = document.getElementById("back");
         const scenePicker = document.getElementById("scenePicker");
@@ -88,7 +175,7 @@ async function init() {
             backBtn.addEventListener("click", () => {
                 const vp = document.getElementById("viewport");
                 console.debug("[main] back pressed, toggling scene picker");
-                // show full-screen picker draft and hide viewport
+                // show/hide full-screen picker and toggle viewport visibility
                 if (scenePicker.style.display === "block") {
                     scenePicker.style.display = "none";
                     if (vp)
@@ -98,30 +185,6 @@ async function init() {
                 scenePicker.style.display = "block";
                 if (vp)
                     vp.style.display = "none";
-                sceneList.innerHTML = "";
-                // populate simple preview list (we only have jungle_adventure currently)
-                const s = document.createElement("div");
-                s.style.margin = "8px 0";
-                const thumb = document.createElement("img");
-                thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
-                thumb.style.maxWidth = "240px";
-                thumb.style.display = "block";
-                const label = document.createElement("div");
-                label.textContent = "jungle_adventure";
-                s.appendChild(thumb);
-                s.appendChild(label);
-                sceneList.appendChild(s);
-                // add a close button to return
-                const close = document.createElement("button");
-                close.textContent = "Close";
-                close.style.display = "block";
-                close.style.marginTop = "12px";
-                close.addEventListener("click", () => {
-                    scenePicker.style.display = "none";
-                    if (vp)
-                        vp.style.display = "inline-block";
-                });
-                sceneList.appendChild(close);
             });
         }
         // populate scene picker from manifest (assets/scenes/scene-manifest.json)
@@ -149,8 +212,38 @@ async function init() {
                 const picker = document.getElementById("sceneList");
                 if (picker) {
                     picker.innerHTML = "";
-                    for (const name of list)
-                        createSceneCard(picker, name);
+                    // create grouping containers for scene types
+                    const photoGroup = document.createElement("div");
+                    const wimmelGroup = document.createElement("div");
+                    const photoHeader = document.createElement("h3");
+                    photoHeader.textContent = "Photo scenes";
+                    const wimmelHeader = document.createElement("h3");
+                    wimmelHeader.textContent = "Wimmelbild scenes";
+                    photoGroup.appendChild(photoHeader);
+                    wimmelGroup.appendChild(wimmelHeader);
+                    for (const name of list) {
+                        // each createSceneCard will decide whether to append to photo or wimmel group
+                        await createSceneCard(picker, name, photoGroup, wimmelGroup);
+                    }
+                    // append groups if they have items (beyond the headers)
+                    if (photoGroup.childElementCount > 1)
+                        picker.appendChild(photoGroup);
+                    if (wimmelGroup.childElementCount > 1)
+                        picker.appendChild(wimmelGroup);
+                    // add a close button to return to current scene without changing it
+                    const close = document.createElement("button");
+                    close.textContent = "Close";
+                    close.style.display = "block";
+                    close.style.marginTop = "12px";
+                    close.addEventListener("click", () => {
+                        const vp = document.getElementById("viewport");
+                        const scenePickerEl = document.getElementById("scenePicker");
+                        if (scenePickerEl)
+                            scenePickerEl.style.display = "none";
+                        if (vp)
+                            vp.style.display = "inline-block";
+                    });
+                    picker.appendChild(close);
                 }
             }
             else {
@@ -161,7 +254,7 @@ async function init() {
             console.warn("[main] directory scan error", e);
         }
         // helper to create a card DOM node
-        function createSceneCard(picker, name) {
+        async function createSceneCard(picker, name, photoGroup, wimmelGroup) {
             const card = document.createElement("div");
             card.className = "scene-card";
             const title = document.createElement("div");
@@ -173,54 +266,72 @@ async function init() {
             const thumbWrap = document.createElement("div");
             thumbWrap.className = "thumb-wrap";
             // try to fetch the scene json to get an explicit preview image path
-            (async () => {
-                try {
-                    const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
-                    if (jres.ok) {
-                        const def = await jres.json();
-                        const imgPath = def.image
-                            ? `${basePath}/assets/scenes/${def.image}`
-                            : `${basePath}/assets/scenes/${name}.jpg`;
-                        const thumb = document.createElement("img");
-                        thumb.src = imgPath;
-                        thumb.alt = name;
-                        thumb.className = "scene-thumb blurred";
-                        thumb.onload = () => {
-                            thumbWrap.appendChild(thumb);
-                        };
-                        thumb.onerror = () => {
-                            console.debug("[main] thumbnail failed to load for", name, imgPath);
-                        };
-                    }
-                    else {
-                        console.debug("[main] scene json fetch failed for", name, jres.status);
-                    }
+            try {
+                const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
+                if (!jres.ok) {
+                    console.debug("[main] scene json fetch failed for", name, jres.status);
+                    return;
                 }
-                catch (e) {
-                    console.debug("[main] error fetching scene json for", name, e);
+                const def = await jres.json();
+                // determine image and mask paths
+                const imgPath = def.image
+                    ? `${basePath}/assets/scenes/${def.image}`
+                    : `${basePath}/assets/scenes/${name}.jpg`;
+                const maskPath = `${basePath}/assets/scenes/${name}_mask.png`;
+                // check that image and mask actually exist on the server
+                const [imgRes, maskRes] = await Promise.all([
+                    fetch(imgPath, { method: "GET" }),
+                    fetch(maskPath, { method: "GET" }),
+                ]);
+                if (!imgRes.ok || !maskRes.ok) {
+                    console.debug("[main] skipping scene because image/mask missing", name, { img: imgRes.status, mask: maskRes.status });
+                    return;
                 }
-                finally {
-                    // always append the card even if image failed; show placeholder if empty
-                    if (!thumbWrap.hasChildNodes()) {
-                        const ph = document.createElement("div");
-                        ph.style.height = "120px";
-                        ph.style.background = "#222";
-                        ph.style.display = "flex";
-                        ph.style.alignItems = "center";
-                        ph.style.justifyContent = "center";
-                        ph.textContent = "Preview";
-                        ph.style.color = "#666";
-                        thumbWrap.appendChild(ph);
+                const thumb = document.createElement("img");
+                thumb.src = imgPath;
+                thumb.alt = name;
+                thumb.className = "scene-thumb blurred"; // blurred so previews don't spoil
+                thumbWrap.appendChild(thumb);
+                // append title/thumb to the card
+                card.appendChild(title);
+                card.appendChild(thumbWrap);
+                // clicking anywhere on the card should load that scene (resetting state)
+                card.addEventListener("click", async () => {
+                    try {
+                        await loadSceneByName(name);
+                        // hide picker and show viewport again
+                        const scenePickerEl = document.getElementById("scenePicker");
+                        const vp = document.getElementById("viewport");
+                        if (scenePickerEl)
+                            scenePickerEl.style.display = "none";
+                        if (vp)
+                            vp.style.display = "inline-block";
+                        // push state to URL so deep links work
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set("scene", name);
+                            window.history.pushState({}, "", newUrl.toString());
+                        }
+                        catch (e) {
+                            // ignore history failures
+                        }
                     }
-                    card.appendChild(title);
-                    card.appendChild(thumbWrap);
-                    card.addEventListener("click", () => {
-                        globalThis.location.search = `?scene=${name}`;
-                    });
-                    console.debug("[main] created scene card", name);
-                    picker.appendChild(card);
-                }
-            })();
+                    catch (e) {
+                        console.error("Failed to load scene on card click", name, e);
+                        // leave picker visible so user can choose another
+                    }
+                });
+                // group by sceneType
+                const st = def.sceneType || "photo";
+                if (st === "wimmelbild")
+                    wimmelGroup.appendChild(card);
+                else
+                    photoGroup.appendChild(card);
+                console.debug("[main] created scene card", name, "type", st);
+            }
+            catch (e) {
+                console.debug("[main] error fetching scene json for", name, e);
+            }
         }
         // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
         new InputHandler(canvas, (dxScreen, dyScreen) => {
@@ -242,19 +353,24 @@ async function init() {
                 renderer.triggerFlash();
                 return;
             }
-            // Log objectives and status
+            // Log objectives and status (support both `tag` and `tags[]` fields)
             const objectives = scene.definition.objectives || [];
             console.log("[main] objectives", objectives.map((o) => ({
                 emoji: o.emoji || o.title,
-                tag: o.tag,
-                found: scene.getAnimalsForObjective(o).filter((a) => a.found).length,
+                tag: o.tag || (o.tags && o.tags[0]) || undefined,
+                found: scene.getObjectsForObjective(o).filter((a) => a.found).length,
             })));
             // pick next unfound target for current objective
-            const obj = scene.definition.objectives?.[0];
-            const animals = obj
-                ? scene.getAnimalsForObjective(obj)
-                : scene.definition.animals;
-            const target = animals.find((a) => !a.found);
+            // Use the renderer's currentObjective when present (reflects progression),
+            // otherwise fall back to the first defined objective.
+            const obj = (renderer && renderer.currentObjective);
+            const fallback = scene.definition.objectives?.[0];
+            const objects = obj
+                ? scene.getObjectsForObjective(obj)
+                : fallback
+                    ? scene.getObjectsForObjective(fallback)
+                    : scene.definition.objects;
+            const target = objects.find((a) => !a.found);
             if (!target) {
                 console.log("[main] no target remains");
                 renderer.triggerFlash();
@@ -279,9 +395,20 @@ async function init() {
             // If already centered, proceed to attempt capture. If we actually nudged, we also
             // proceed — the nudge should have centered the animal.
             if (nudgeResult === "already-centered" || nudgeResult === "nudged") {
-                // Now attempt capture using lastTapWorld if available
-                const tap = lastTapWorld ? [lastTapWorld.x, lastTapWorld.y] : [];
-                const captureRes = cameraCtrl.attemptCapture(...tap);
+                // Now attempt capture using lastTapWorld if available and valid; otherwise
+                // let the controller sample from the viewport center by passing undefined.
+                let tapX = undefined;
+                let tapY = undefined;
+                if (lastTapWorld &&
+                    scene &&
+                    lastTapWorld.x >= 0 &&
+                    lastTapWorld.y >= 0 &&
+                    lastTapWorld.x < scene.mask.width &&
+                    lastTapWorld.y < scene.mask.height) {
+                    tapX = lastTapWorld.x;
+                    tapY = lastTapWorld.y;
+                }
+                const captureRes = cameraCtrl.attemptCapture(tapX, tapY, renderer.currentObjective);
                 // show flash immediately
                 renderer.triggerFlash();
                 if (captureRes && captureRes.polaroid) {
@@ -296,11 +423,52 @@ async function init() {
                             pausedForPolaroid = false;
                             polaroidUi.hide();
                             renderer.suppressCelebration = false;
-                            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-                            if (scene.allFound(objectiveAnimals)) {
-                                confetti.burst(60);
-                                confetti.startContinuous(6);
-                                setTimeout(() => confetti.stop(), 2000);
+                            // After a successful capture, check whether the current objective
+                            // is now complete. If so, advance to the next objective (if any).
+                            // Only when all objectives are complete do we show confetti.
+                            try {
+                                const objectives = scene.definition.objectives || [];
+                                // Determine index of current objective in the scene definition
+                                let currentIndex = objectives.findIndex((o) => o === renderer.currentObjective);
+                                if (currentIndex < 0)
+                                    currentIndex = 0;
+                                const currentObj = objectives[currentIndex];
+                                const objectiveObjects = scene.getObjectsForObjective(currentObj);
+                                if (scene.allFound(objectiveObjects)) {
+                                    // If there is another objective after this one, advance to it
+                                    if (currentIndex + 1 < objectives.length) {
+                                        const nextObj = objectives[currentIndex + 1];
+                                        const nextTag = nextObj.tags && nextObj.tags.length
+                                            ? nextObj.tags[0]
+                                            : nextObj.tag || "";
+                                        renderer.currentObjective = {
+                                            title: nextObj.title,
+                                            tag: nextTag,
+                                            emoji: nextObj.emoji,
+                                        };
+                                        // update HUD objective emoji/title
+                                        const objEl = document.getElementById("objective");
+                                        if (objEl && nextObj) {
+                                            objEl.textContent =
+                                                nextObj.emoji || nextObj.title || "📍";
+                                        }
+                                        // don't celebrate yet; wait until final objective completed
+                                        console.log("[main] objective completed, advanced to next", nextObj);
+                                        // refresh top-right progress UI
+                                        updateObjectiveProgress();
+                                    }
+                                    else {
+                                        // last objective completed — celebrate
+                                        confetti.burst(60);
+                                        confetti.startContinuous(6);
+                                        setTimeout(() => confetti.stop(), 2000);
+                                        // final update of progress UI
+                                        updateObjectiveProgress();
+                                    }
+                                }
+                            }
+                            catch (e) {
+                                console.error("Error advancing objectives", e);
                             }
                         }, { once: true });
                     }, 1000);
@@ -392,20 +560,66 @@ function loop(ts) {
     requestAnimationFrame(loop);
 }
 function populateSceneSelect() {
-    const choices = ["jungle_adventure", "savanna", "arctic"];
-    for (const s of choices) {
-        const o = document.createElement("option");
-        o.value = s;
-        o.textContent = s;
-        sceneSelect.appendChild(o);
-    }
-    const current = new URLSearchParams(window.location.search).get("scene");
-    if (current)
-        sceneSelect.value = current;
-    sceneSelect.addEventListener("change", () => {
-        const v = sceneSelect.value;
-        window.location.search = `?scene=${v}`;
-    });
+    // Dynamically populate the HUD select with available scenes found in
+    // assets/scenes/ (skips templates and incomplete scenes missing image/mask).
+    (async () => {
+        sceneSelect.innerHTML = "";
+        const current = new URLSearchParams(globalThis.location.search).get("scene");
+        try {
+            const dirRes = await fetch(`${basePath}/assets/scenes/`);
+            if (!dirRes.ok)
+                return;
+            const text = await dirRes.text();
+            const re = /href\s*=\s*"([^"]+\.json)"/g;
+            const names = new Set();
+            let m;
+            while ((m = re.exec(text))) {
+                const href = m[1];
+                if (/\/template\//i.test(href) || /^template\//i.test(href))
+                    continue;
+                const base = href.replace(/\.json$/, "").replace(/.*\//, "");
+                names.add(base);
+            }
+            for (const name of names) {
+                try {
+                    const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
+                    if (!jres.ok)
+                        continue;
+                    const def = await jres.json();
+                    const imgPath = def.image
+                        ? `${basePath}/assets/scenes/${def.image}`
+                        : `${basePath}/assets/scenes/${name}.jpg`;
+                    const maskPath = `${basePath}/assets/scenes/${name}_mask.png`;
+                    const [imgRes, maskRes] = await Promise.all([
+                        fetch(imgPath, { method: "GET" }),
+                        fetch(maskPath, { method: "GET" }),
+                    ]);
+                    if (!imgRes.ok || !maskRes.ok)
+                        continue;
+                    const o = document.createElement("option");
+                    o.value = name;
+                    // prettify label (Jungle Adventure instead of jungle_adventure)
+                    o.textContent = name
+                        .replaceAll("_", " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase());
+                    sceneSelect.appendChild(o);
+                }
+                catch (e) {
+                    // skip problematic entries
+                    continue;
+                }
+            }
+            if (current)
+                sceneSelect.value = current;
+            sceneSelect.addEventListener("change", () => {
+                const v = sceneSelect.value;
+                globalThis.location.search = `?scene=${v}`;
+            });
+        }
+        catch (e) {
+            console.warn("[main] populateSceneSelect failed", e);
+        }
+    })();
 }
 canvas.addEventListener("pointerdown", (e) => {
     isDragging = true;
