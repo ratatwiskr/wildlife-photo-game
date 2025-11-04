@@ -61,8 +61,8 @@ export class Scene {
         });
     }
     /**
-    * Scan mask image pixel data to compute centroid & approximate radius per color.
-    * Populates object.x, object.y, object.radius.
+     * Scan mask image pixel data to compute centroid & approximate radius per color.
+     * Populates object.x, object.y, object.radius.
      */
     extractPositionsFromMask() {
         if (!this.mask)

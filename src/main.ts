@@ -66,13 +66,15 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const sceneName = params.get("scene") || "jungle_adventure";
 
-  try {
-    const defUrl = `${basePath}/assets/scenes/${sceneName}.json`;
+  // centralized scene loader so we can load without a full page reload
+  async function loadSceneByName(name: string) {
+    const defUrl = `${basePath}/assets/scenes/${name}.json`;
     console.log("[main] loading", defUrl);
     const res = await fetch(defUrl);
     if (!res.ok) throw new Error(`Failed to load ${defUrl}`);
     const def = await res.json();
 
+    // instantiate and initialize scene
     scene = new Scene(def);
     await scene.loadImages(); // load images
     scene.extractPositionsFromMask(); // compute centroids
@@ -91,6 +93,21 @@ async function init() {
     const sceneSelectEl = document.getElementById("sceneSelect");
     if (sceneSelectEl) sceneSelectEl.style.display = "none";
 
+    // wire camera controller for the newly loaded scene
+    if (renderer.viewport) {
+      cameraCtrl = new CameraController(scene, renderer.viewport as any);
+    }
+
+    // update select value so UI reflects current scene
+    const sceneSelectEl2 = document.getElementById(
+      "sceneSelect"
+    ) as HTMLSelectElement | null;
+    if (sceneSelectEl2) sceneSelectEl2.value = name;
+  }
+
+  try {
+    await loadSceneByName(sceneName);
+
     // setup back button to show a simple scene picker draft
     const backBtn = document.getElementById("back");
     const scenePicker = document.getElementById("scenePicker");
@@ -99,7 +116,7 @@ async function init() {
       backBtn.addEventListener("click", () => {
         const vp = document.getElementById("viewport");
         console.debug("[main] back pressed, toggling scene picker");
-        // show full-screen picker draft and hide viewport
+        // show/hide full-screen picker and toggle viewport visibility
         if (scenePicker.style.display === "block") {
           scenePicker.style.display = "none";
           if (vp) vp.style.display = "inline-block";
@@ -107,29 +124,6 @@ async function init() {
         }
         scenePicker.style.display = "block";
         if (vp) vp.style.display = "none";
-        sceneList.innerHTML = "";
-        // populate simple preview list (we only have jungle_adventure currently)
-        const s = document.createElement("div");
-        s.style.margin = "8px 0";
-        const thumb = document.createElement("img");
-        thumb.src = `${basePath}/assets/scenes/jungle_adventure.jpg`;
-        thumb.style.maxWidth = "240px";
-        thumb.style.display = "block";
-        const label = document.createElement("div");
-        label.textContent = "jungle_adventure";
-        s.appendChild(thumb);
-        s.appendChild(label);
-        sceneList.appendChild(s);
-        // add a close button to return
-        const close = document.createElement("button");
-        close.textContent = "Close";
-        close.style.display = "block";
-        close.style.marginTop = "12px";
-        close.addEventListener("click", () => {
-          scenePicker.style.display = "none";
-          if (vp) vp.style.display = "inline-block";
-        });
-        sceneList.appendChild(close);
       });
     }
 
@@ -158,7 +152,38 @@ async function init() {
         const picker = document.getElementById("sceneList");
         if (picker) {
           picker.innerHTML = "";
-          for (const name of list) createSceneCard(picker, name);
+          // create grouping containers for scene types
+          const photoGroup = document.createElement("div");
+          const wimmelGroup = document.createElement("div");
+          const photoHeader = document.createElement("h3");
+          photoHeader.textContent = "Photo scenes";
+          const wimmelHeader = document.createElement("h3");
+          wimmelHeader.textContent = "Wimmelbild scenes";
+          photoGroup.appendChild(photoHeader);
+          wimmelGroup.appendChild(wimmelHeader);
+
+          for (const name of list) {
+            // each createSceneCard will decide whether to append to photo or wimmel group
+            await createSceneCard(picker, name, photoGroup, wimmelGroup);
+          }
+
+          // append groups if they have items (beyond the headers)
+          if (photoGroup.childElementCount > 1) picker.appendChild(photoGroup);
+          if (wimmelGroup.childElementCount > 1)
+            picker.appendChild(wimmelGroup);
+
+          // add a close button to return to current scene without changing it
+          const close = document.createElement("button");
+          close.textContent = "Close";
+          close.style.display = "block";
+          close.style.marginTop = "12px";
+          close.addEventListener("click", () => {
+            const vp = document.getElementById("viewport");
+            const scenePickerEl = document.getElementById("scenePicker");
+            if (scenePickerEl) scenePickerEl.style.display = "none";
+            if (vp) vp.style.display = "inline-block";
+          });
+          picker.appendChild(close);
         }
       } else {
         console.warn("[main] directory scan failed", dirRes.status);
@@ -168,7 +193,12 @@ async function init() {
     }
 
     // helper to create a card DOM node
-    function createSceneCard(picker: HTMLElement, name: string) {
+    async function createSceneCard(
+      picker: HTMLElement,
+      name: string,
+      photoGroup: HTMLElement,
+      wimmelGroup: HTMLElement
+    ) {
       const card = document.createElement("div");
       card.className = "scene-card";
       const title = document.createElement("div");
@@ -181,59 +211,80 @@ async function init() {
       thumbWrap.className = "thumb-wrap";
 
       // try to fetch the scene json to get an explicit preview image path
-      (async () => {
-        try {
-          const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
-          if (jres.ok) {
-            const def = await jres.json();
-            const imgPath = def.image
-              ? `${basePath}/assets/scenes/${def.image}`
-              : `${basePath}/assets/scenes/${name}.jpg`;
-            const thumb = document.createElement("img");
-            thumb.src = imgPath;
-            thumb.alt = name;
-            thumb.className = "scene-thumb blurred";
-            thumb.onload = () => {
-              thumbWrap.appendChild(thumb);
-            };
-            thumb.onerror = () => {
-              console.debug(
-                "[main] thumbnail failed to load for",
-                name,
-                imgPath
-              );
-            };
-          } else {
-            console.debug(
-              "[main] scene json fetch failed for",
-              name,
-              jres.status
-            );
-          }
-        } catch (e) {
-          console.debug("[main] error fetching scene json for", name, e);
-        } finally {
-          // always append the card even if image failed; show placeholder if empty
-          if (!thumbWrap.hasChildNodes()) {
-            const ph = document.createElement("div");
-            ph.style.height = "120px";
-            ph.style.background = "#222";
-            ph.style.display = "flex";
-            ph.style.alignItems = "center";
-            ph.style.justifyContent = "center";
-            ph.textContent = "Preview";
-            ph.style.color = "#666";
-            thumbWrap.appendChild(ph);
-          }
-          card.appendChild(title);
-          card.appendChild(thumbWrap);
-          card.addEventListener("click", () => {
-            globalThis.location.search = `?scene=${name}`;
-          });
-          console.debug("[main] created scene card", name);
-          picker.appendChild(card);
+      try {
+        const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
+        if (!jres.ok) {
+          console.debug(
+            "[main] scene json fetch failed for",
+            name,
+            jres.status
+          );
+          return;
         }
-      })();
+        const def = await jres.json();
+
+        // determine image and mask paths
+        const imgPath = def.image
+          ? `${basePath}/assets/scenes/${def.image}`
+          : `${basePath}/assets/scenes/${name}.jpg`;
+        const maskPath = `${basePath}/assets/scenes/${name}_mask.png`;
+
+        // check that image and mask actually exist on the server
+        const [imgRes, maskRes] = await Promise.all([
+          fetch(imgPath, { method: "GET" }),
+          fetch(maskPath, { method: "GET" }),
+        ]);
+        if (!imgRes.ok || !maskRes.ok) {
+          console.debug(
+            "[main] skipping scene because image/mask missing",
+            name,
+            { img: imgRes.status, mask: maskRes.status }
+          );
+          return;
+        }
+
+        const thumb = document.createElement("img");
+        thumb.src = imgPath;
+        thumb.alt = name;
+        thumb.className = "scene-thumb blurred"; // blurred so previews don't spoil
+        thumbWrap.appendChild(thumb);
+
+        // append title/thumb to the card
+        card.appendChild(title);
+        card.appendChild(thumbWrap);
+
+        // clicking anywhere on the card should load that scene (resetting state)
+        card.addEventListener("click", async () => {
+          try {
+            await loadSceneByName(name);
+            // hide picker and show viewport again
+            const scenePickerEl = document.getElementById("scenePicker");
+            const vp = document.getElementById("viewport");
+            if (scenePickerEl) scenePickerEl.style.display = "none";
+            if (vp) vp.style.display = "inline-block";
+            // push state to URL so deep links work
+            try {
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set("scene", name);
+              window.history.pushState({}, "", newUrl.toString());
+            } catch (e) {
+              // ignore history failures
+            }
+          } catch (e) {
+            console.error("Failed to load scene on card click", name, e);
+            // leave picker visible so user can choose another
+          }
+        });
+
+        // group by sceneType
+        const st = def.sceneType || "photo";
+        if (st === "wimmelbild") wimmelGroup.appendChild(card);
+        else photoGroup.appendChild(card);
+
+        console.debug("[main] created scene card", name, "type", st);
+      } catch (e) {
+        console.debug("[main] error fetching scene json for", name, e);
+      }
     }
 
     // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
@@ -430,7 +481,12 @@ function loop(ts: number) {
 }
 
 function populateSceneSelect() {
-  const choices = ["jungle_adventure", "savanna", "arctic"];
+  const choices = [
+    "jungle_adventure",
+    "jungle_adventure_with_sun",
+    "savanna",
+    "arctic",
+  ];
   for (const s of choices) {
     const o = document.createElement("option");
     o.value = s;
