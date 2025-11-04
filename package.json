@@ -10,6 +10,8 @@
     "serve": "npx http-server . -p 8090 -c-1",
     "dev": "npm run build && npm run serve",
     "test": "jest --passWithNoTests",
+    "cy:open": "npx cypress open",
+    "cy:run": "npx cypress run",
     "validate:scenes": "tsx misc/scripts/validateScenes.ts",
     "precommit": "npm run validate:scenes"
   },
