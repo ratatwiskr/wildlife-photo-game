@@ -77,7 +77,7 @@ export class SceneRenderer {
         const dWidth = this.canvas.width;
         const dHeight = this.canvas.height;
         ctx.drawImage(this.scene.image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-        // draw outlines for found animals that are within viewport
+        // draw outlines for found objects that are within viewport
         this.drawFoundOutlines();
         // flash overlay
         if (this.flashAlpha > 0) {
@@ -102,8 +102,8 @@ export class SceneRenderer {
         // objective HUD is rendered in DOM (side panel). Renderer only draws scene.
         // debug: draw crosshair / circle for the next unfound target
         if (this.debug && this.scene) {
-            const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-            const target = objectiveAnimals.find((a) => !a.found && a.x != null && a.y != null);
+            const objectiveObjects = this.scene.getObjectsForObjective(this.currentObjective);
+            const target = objectiveObjects.find((o) => !o.found && o.x != null && o.y != null);
             if (target && target.x != null && target.y != null) {
                 const relX = (target.x - this.viewport.x) / this.viewport.width;
                 const relY = (target.y - this.viewport.y) / this.viewport.height;
@@ -149,8 +149,8 @@ export class SceneRenderer {
             }
         }
         // celebration overlay (can be suppressed while polaroid is shown)
-        const objectiveAnimals = this.scene.getAnimalsForObjective(this.currentObjective);
-        if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
+        const objectiveObjects = this.scene.getObjectsForObjective(this.currentObjective);
+        if (!this.suppressCelebration && this.scene.allFound(objectiveObjects)) {
             this.drawCelebration();
         }
     }
@@ -164,17 +164,17 @@ export class SceneRenderer {
         if (!this.scene || !this.viewport)
             return;
         const ctx = this.ctx;
-        for (const animal of this.scene.definition.animals) {
-            if (!animal.found)
+        for (const obj of this.scene.definition.objects) {
+            if (!obj.found)
                 continue;
-            if (animal.x == null || animal.y == null)
+            if (obj.x == null || obj.y == null)
                 continue;
             // convert world coords -> screen coords (account for scaling)
-            const relX = (animal.x - this.viewport.x) / this.viewport.width;
-            const relY = (animal.y - this.viewport.y) / this.viewport.height;
+            const relX = (obj.x - this.viewport.x) / this.viewport.width;
+            const relY = (obj.y - this.viewport.y) / this.viewport.height;
             const screenX = Math.round(relX * this.canvas.width);
             const screenY = Math.round(relY * this.canvas.height);
-            const screenRadius = Math.max(8, Math.round((animal.radius ?? 20) * (this.canvas.width / this.viewport.width)));
+            const screenRadius = Math.max(8, Math.round((obj.radius ?? 20) * (this.canvas.width / this.viewport.width)));
             // if the circle would be fully off-screen, skip drawing
             if (screenX + screenRadius < 0 ||
                 screenX - screenRadius > this.canvas.width ||
@@ -182,7 +182,7 @@ export class SceneRenderer {
                 screenY - screenRadius > this.canvas.height)
                 continue;
             // color by objective tag (first tag)
-            const tag = animal.tags?.[0] ?? "default";
+            const tag = obj.tags?.[0] ?? "default";
             const color = this.objectiveColors[tag] ?? "#ff0";
             ctx.save();
             ctx.beginPath();
@@ -208,7 +208,7 @@ export class SceneRenderer {
         ctx.font = "bold 28px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const foundCount = this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
+        const foundCount = this.scene?.definition.objects.filter((a) => a.found).length ?? 0;
         // subtle celebration text near top
         ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
         ctx.restore();

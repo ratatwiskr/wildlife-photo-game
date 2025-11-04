@@ -1,7 +1,7 @@
 # 🦁 Wildlife Photo / Wimmelbild Game
 
 **Project goal:**
-A tablet-friendly _photo hunt game_ for children (2–6), now extensible to “wimmelbild”-style tasks: find animals, planes, or other objects. Supports real photos or illustrations.
+A tablet-friendly _photo hunt game_ for children (2–6), now extensible to “wimmelbild”-style tasks: find objects like animals, planes, or other items. Supports real photos or illustrations.
 
 Players **pan/drag** or use a stylus to find objects in a scene and tap/click to capture them.
 
@@ -21,7 +21,7 @@ Players **pan/drag** or use a stylus to find objects in a scene and tap/click to
 │   └── input.ts
 ├── scripts/               # compiled JS output
 ├── assets/
-│   ├── animals/*.svg
+│   ├── objects/*.svg
 │   ├── backgrounds/*.svg or .jpg
 │   └── icons/*.svg
 ├── scenes/

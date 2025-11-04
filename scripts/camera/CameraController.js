@@ -90,14 +90,14 @@ export class CameraController {
             return null;
         }
         const obj = (this.scene.definition.objectives || [])[0];
-        const animals = obj
-            ? this.scene.getAnimalsForObjective(obj)
-            : this.scene.definition.animals;
-        const target = animals.find((a) => !a.found);
+        const objects = obj
+            ? this.scene.getObjectsForObjective(obj)
+            : this.scene.definition.objects;
+        const target = objects.find((a) => !a.found);
         if (!target)
             return null;
         // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
-        if (!this.aimAssist.isAnimalInView(this.viewport, target)) {
+        if (!this.aimAssist.isObjectInView(this.viewport, target)) {
             console.log("[camera] target not in view; require nudge before capture");
             return null;
         }
@@ -131,12 +131,12 @@ export class CameraController {
                 return null;
             }
             // build polaroid canvas: cut bounding box from scene.image using mask
-            const animal = this.scene.definition.animals.find((a) => a.name === foundName);
+            const objDef = this.scene.definition.objects.find((a) => a.name === foundName);
             const pad = 12;
-            const left = Math.max(0, Math.floor((animal.x ?? 0) - (animal.radius ?? 30) - pad));
-            const top = Math.max(0, Math.floor((animal.y ?? 0) - (animal.radius ?? 30) - pad));
-            const w = Math.min(this.scene.image.width - left, Math.floor((animal.radius ?? 30) * 2 + pad * 2));
-            const h = Math.min(this.scene.image.height - top, Math.floor((animal.radius ?? 30) * 2 + pad * 3));
+            const left = Math.max(0, Math.floor((objDef.x ?? 0) - (objDef.radius ?? 30) - pad));
+            const top = Math.max(0, Math.floor((objDef.y ?? 0) - (objDef.radius ?? 30) - pad));
+            const w = Math.min(this.scene.image.width - left, Math.floor((objDef.radius ?? 30) * 2 + pad * 2));
+            const h = Math.min(this.scene.image.height - top, Math.floor((objDef.radius ?? 30) * 2 + pad * 3));
             const pol = document.createElement("canvas");
             pol.width = w + 40; // white border
             pol.height = h + 80; // larger bottom border

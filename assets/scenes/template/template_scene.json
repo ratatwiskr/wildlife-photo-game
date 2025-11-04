@@ -16,8 +16,8 @@
       "color": "#ff0000",
 
       // Tags define logical categories or objective groups.
-      // Example: ["animal"], ["bird"], ["vehicle"], ["tree"]
-      "tags": ["animal"]
+      // Example: ["object"], ["bird"], ["vehicle"], ["tree"]
+      "tags": ["object"]
     }
   ],
 
@@ -25,8 +25,8 @@
   "objectives": [
     {
       // Displayed to adult or in icon form to player
-      "title": "Find all animals 🦓",
-      "tags": ["animal"],
+      "title": "Find all objects 🦓",
+      "tags": ["object"],
       "emoji": "🦓"
     }
   ]

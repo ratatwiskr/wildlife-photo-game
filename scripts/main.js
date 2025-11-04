@@ -247,14 +247,14 @@ async function init() {
             console.log("[main] objectives", objectives.map((o) => ({
                 emoji: o.emoji || o.title,
                 tag: o.tag,
-                found: scene.getAnimalsForObjective(o).filter((a) => a.found).length,
+                found: scene.getObjectsForObjective(o).filter((a) => a.found).length,
             })));
             // pick next unfound target for current objective
             const obj = scene.definition.objectives?.[0];
-            const animals = obj
-                ? scene.getAnimalsForObjective(obj)
-                : scene.definition.animals;
-            const target = animals.find((a) => !a.found);
+            const objects = obj
+                ? scene.getObjectsForObjective(obj)
+                : scene.definition.objects;
+            const target = objects.find((a) => !a.found);
             if (!target) {
                 console.log("[main] no target remains");
                 renderer.triggerFlash();
@@ -296,8 +296,8 @@ async function init() {
                             pausedForPolaroid = false;
                             polaroidUi.hide();
                             renderer.suppressCelebration = false;
-                            const objectiveAnimals = scene.getAnimalsForObjective(renderer.currentObjective);
-                            if (scene.allFound(objectiveAnimals)) {
+                            const objectiveObjects = scene.getObjectsForObjective(renderer.currentObjective);
+                            if (scene.allFound(objectiveObjects)) {
                                 confetti.burst(60);
                                 confetti.startContinuous(6);
                                 setTimeout(() => confetti.stop(), 2000);

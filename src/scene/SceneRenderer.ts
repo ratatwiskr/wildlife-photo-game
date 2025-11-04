@@ -108,7 +108,7 @@ export class SceneRenderer {
       dHeight
     );
 
-    // draw outlines for found animals that are within viewport
+    // draw outlines for found objects that are within viewport
     this.drawFoundOutlines();
 
     // flash overlay
@@ -145,11 +145,11 @@ export class SceneRenderer {
 
     // debug: draw crosshair / circle for the next unfound target
     if (this.debug && this.scene) {
-      const objectiveAnimals = this.scene.getAnimalsForObjective(
+      const objectiveObjects = this.scene.getObjectsForObjective(
         this.currentObjective
       );
-      const target = objectiveAnimals.find(
-        (a) => !a.found && a.x != null && a.y != null
+      const target = objectiveObjects.find(
+        (o) => !o.found && o.x != null && o.y != null
       );
       if (target && target.x != null && target.y != null) {
         const relX = (target.x - this.viewport.x) / this.viewport.width;
@@ -200,10 +200,10 @@ export class SceneRenderer {
       }
     }
     // celebration overlay (can be suppressed while polaroid is shown)
-    const objectiveAnimals = this.scene.getAnimalsForObjective(
+    const objectiveObjects = this.scene.getObjectsForObjective(
       this.currentObjective
     );
-    if (!this.suppressCelebration && this.scene.allFound(objectiveAnimals)) {
+    if (!this.suppressCelebration && this.scene.allFound(objectiveObjects)) {
       this.drawCelebration();
     }
   }
@@ -218,19 +218,19 @@ export class SceneRenderer {
   private drawFoundOutlines() {
     if (!this.scene || !this.viewport) return;
     const ctx = this.ctx;
-    for (const animal of this.scene.definition.animals) {
-      if (!animal.found) continue;
-      if (animal.x == null || animal.y == null) continue;
+    for (const obj of this.scene.definition.objects) {
+      if (!obj.found) continue;
+      if (obj.x == null || obj.y == null) continue;
 
       // convert world coords -> screen coords (account for scaling)
-      const relX = (animal.x - this.viewport.x) / this.viewport.width;
-      const relY = (animal.y - this.viewport.y) / this.viewport.height;
+      const relX = (obj.x - this.viewport.x) / this.viewport.width;
+      const relY = (obj.y - this.viewport.y) / this.viewport.height;
       const screenX = Math.round(relX * this.canvas.width);
       const screenY = Math.round(relY * this.canvas.height);
       const screenRadius = Math.max(
         8,
         Math.round(
-          (animal.radius ?? 20) * (this.canvas.width / this.viewport.width)
+          (obj.radius ?? 20) * (this.canvas.width / this.viewport.width)
         )
       );
 
@@ -244,7 +244,7 @@ export class SceneRenderer {
         continue;
 
       // color by objective tag (first tag)
-      const tag = animal.tags?.[0] ?? "default";
+      const tag = obj.tags?.[0] ?? "default";
       const color = this.objectiveColors[tag] ?? "#ff0";
 
       ctx.save();
@@ -278,7 +278,7 @@ export class SceneRenderer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const foundCount =
-      this.scene?.definition.animals.filter((a) => a.found).length ?? 0;
+      this.scene?.definition.objects.filter((a) => a.found).length ?? 0;
     // subtle celebration text near top
     ctx.fillText(`🎉 ${foundCount}`, this.canvas.width - 60, 40);
     ctx.restore();

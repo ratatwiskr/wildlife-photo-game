@@ -48,7 +48,7 @@ export class Scene {
     };
   }
 
-  /** Load scene image & mask, then extract per-animal positions from mask */
+  /** Load scene image & mask, then extract per-object positions from mask */
   async loadImagesAndExtract(): Promise<void> {
     await this.loadImages();
     this.extractPositionsFromMask();
@@ -101,7 +101,7 @@ export class Scene {
 
   /**
    * Scan mask image pixel data to compute centroid & approximate radius per color.
-   * Populates animal.x, animal.y, animal.radius.
+   * Populates object.x, object.y, object.radius.
    */
   extractPositionsFromMask(): void {
     if (!this.mask) return;
