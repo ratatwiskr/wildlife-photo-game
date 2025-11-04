@@ -2,6 +2,9 @@
   // Unique scene name — must match JPG and PNG base filenames.
   "name": "template_scene",
 
+  // sceneType: "photo" (camera-based) or "wimmelbild" (direct-click search)
+  "sceneType": "wimmelbild",
+
   // List of discoverable objects.
   "objects": [
     {
@@ -23,7 +26,8 @@
     {
       // Displayed to adult or in icon form to player
       "title": "Find all animals 🦓",
-      "tag": "animal"
+      "tags": ["animal"],
+      "emoji": "🦓"
     }
   ]
 }

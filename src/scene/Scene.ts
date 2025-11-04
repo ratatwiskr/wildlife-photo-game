@@ -1,7 +1,7 @@
 // src/scene/Scene.ts
 import { basePath } from "../config.js";
 
-export interface Animal {
+export interface SceneObject {
   name: string;
   color: string; // hex code from mask (e.g. "#AABBCC")
   tags: string[];
@@ -23,27 +23,28 @@ export interface Objective {
 
 export interface SceneDefinition {
   name: string;
-  // we accept either "animals" or older "objects" keys
-  animals?: Animal[];
-  objects?: Animal[];
+  sceneType: "photo" | "wimmelbild";
+  objects?: SceneObject[]; // canonical key now
   objectives?: Objective[];
 }
 
 export class Scene {
   public definition: Required<
-    Pick<SceneDefinition, "name" | "animals" | "objectives">
+    Pick<SceneDefinition, "name" | "objects" | "objectives" | "sceneType">
   >;
   public image!: HTMLImageElement;
   public mask!: HTMLImageElement;
 
   constructor(def: SceneDefinition) {
-    // Normalize input: accept animals OR objects
-    const animals = def.animals ?? def.objects ?? [];
+    // Require canonical "objects" key (no legacy support)
+    const objects = def.objects ?? [];
     const objectives = def.objectives ?? [];
+    const sceneType = def.sceneType ?? "photo";
     this.definition = {
       name: def.name,
-      animals: animals.map((a) => ({ ...a })),
+      objects: objects.map((o) => ({ ...o })),
       objectives,
+      sceneType,
     };
   }
 
@@ -88,7 +89,8 @@ export class Scene {
       // safety timeout: if loading takes too long, fallback to tiny placeholder
       const to = setTimeout(() => {
         if (!resolved) {
-          img.src = "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
+          img.src =
+            "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";
           finish();
         }
       }, 1500);
@@ -110,8 +112,10 @@ export class Scene {
     const tmp = document.createElement("canvas");
     tmp.width = w;
     tmp.height = h;
-  const tctx = tmp.getContext("2d", { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
-  if (!tctx) {
+    const tctx = tmp.getContext("2d", {
+      willReadFrequently: true,
+    } as any) as CanvasRenderingContext2D | null;
+    if (!tctx) {
       console.warn("Could not get 2D context for mask extraction");
       return;
     }
@@ -163,14 +167,13 @@ export class Scene {
       }
     }
 
-    // For each animal definition, find its color in map and compute centroid
-    for (const animal of this.definition.animals) {
-      const color = (animal.color || "").toUpperCase();
+    // For each object definition, find its color in map and compute centroid
+    for (const obj of this.definition.objects) {
+      const color = (obj.color || "").toUpperCase();
       const acc = accMap.get(color);
       if (!acc || acc.count === 0) {
-        // No pixels found for that color — leave undefined but warn
         console.warn(
-          `Scene "${this.definition.name}": color ${color} not found in mask for ${animal.name}`
+          `Scene "${this.definition.name}": color ${color} not found in mask for ${obj.name}`
         );
         continue;
       }
@@ -182,20 +185,20 @@ export class Scene {
       const bboxH = acc.maxY - acc.minY + 1;
       const radius = Math.max(8, Math.round(Math.max(bboxW, bboxH) / 2));
 
-      animal.x = cx;
-      animal.y = cy;
-      animal.radius = radius;
+      obj.x = cx;
+      obj.y = cy;
+      obj.radius = radius;
     }
   }
 
   markFoundByColor(hexColor: string): string | null {
-    const animal = this.definition.animals.find(
-      (a) =>
-        !a.found && a.color && a.color.toLowerCase() === hexColor.toLowerCase()
+    const obj = this.definition.objects.find(
+      (o) =>
+        !o.found && o.color && o.color.toLowerCase() === hexColor.toLowerCase()
     );
-    if (!animal) return null;
-    animal.found = true;
-    return animal.name;
+    if (!obj) return null;
+    obj.found = true;
+    return obj.name;
   }
 
   // filterActiveAnimals(tag: string) {
@@ -204,15 +207,17 @@ export class Scene {
   //     : this.definition.animals.filter((a) => a.tags?.includes(tag));
   // }
 
-  allFound(animals = this.definition.animals): boolean {
-    return animals.every((a) => a.found);
+  allFound(objects = this.definition.objects): boolean {
+    return objects.every((a) => a.found);
   }
 
-  getAnimalsForObjective(obj?: Objective) {
-    if (!obj) return this.definition.animals;
+  getObjectsForObjective(obj?: Objective) {
+    if (!obj) return this.definition.objects;
     const tags = obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
-    if (tags.length === 0) return this.definition.animals;
-    return this.definition.animals.filter((a) => a.tags?.some((t) => tags.includes(t)));
+    if (tags.length === 0) return this.definition.objects;
+    return this.definition.objects.filter((a) =>
+      a.tags?.some((t) => tags.includes(t))
+    );
   }
 
   static rgbToHex(r: number, g: number, b: number): string {
