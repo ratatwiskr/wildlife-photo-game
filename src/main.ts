@@ -123,6 +123,7 @@ async function init() {
   });
   populateSceneSelect();
 
+  // get scene from param 'https://ratatwiskr.github.io/wildlife-photo-game/?scene=jungle_adventure' or load default scene 'jungle_adventure'
   const params = new URLSearchParams(window.location.search);
   const sceneName = params.get("scene") || "jungle_adventure";
 
