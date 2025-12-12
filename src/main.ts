@@ -169,6 +169,17 @@ async function init() {
     }
     isLoaded = true;
 
+    // Expose useful handles for end-to-end tests/debugging
+    try {
+      (globalThis as any).__app = {
+        scene,
+        renderer,
+        cameraCtrl,
+      } as any;
+    } catch (e) {
+      /* ignore */
+    }
+
     // hide the select now that a scene is loaded; keep shutter and objective visible
     const sceneSelectEl = document.getElementById("sceneSelect");
     if (sceneSelectEl) sceneSelectEl.style.display = "none";

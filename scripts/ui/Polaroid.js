@@ -2,6 +2,7 @@ export class PolaroidUI {
     container;
     constructor() {
         this.container = document.createElement("div");
+        this.container.setAttribute("data-test-id", "polaroid-overlay");
         this.container.style.position = "fixed";
         this.container.style.inset = "0";
         this.container.style.display = "flex";
