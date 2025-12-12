@@ -1,0 +1,12 @@
+{
+  "name": "dev",
+  "sceneType": "photo",
+  "objects": [
+    { "name": "lion1", "color": "#00ff00", "tags": ["lion"], "found": false },
+    { "name": "sun", "color": "#e9ff00", "tags": ["sun"], "found": false }
+  ],
+  "objectives": [
+    { "title": "Find the 🦁", "tags": ["lion"], "emoji": "🦁" },
+    { "title": "Find the sun", "tags": ["sun"], "emoji": "SUN" }
+  ]
+}
