@@ -30,6 +30,52 @@ let lastX = 0;
 let lastY = 0;
 let lastTapWorld: { x: number; y: number } | null = null;
 
+// objective progress UI updater (top-right of camera frame)
+function updateObjectiveProgress() {
+  const frame = document.getElementById("camera-frame");
+  if (!frame || !scene) return;
+  let prog = document.getElementById("objectiveProgress");
+  if (!prog) {
+    prog = document.createElement("div");
+    prog.id = "objectiveProgress";
+    prog.style.position = "absolute";
+    prog.style.top = "8px";
+    prog.style.right = "8px";
+    prog.style.zIndex = "70";
+    prog.style.display = "flex";
+    prog.style.gap = "6px";
+    prog.style.alignItems = "center";
+    prog.style.padding = "6px";
+    prog.style.background = "rgba(0,0,0,0.18)";
+    prog.style.borderRadius = "8px";
+    prog.style.backdropFilter = "blur(4px)";
+    prog.style.color = "#fff";
+    prog.style.fontSize = "18px";
+    frame.appendChild(prog);
+  }
+
+  prog.innerHTML = "";
+  const objectives = scene.definition.objectives || [];
+  for (const obj of objectives) {
+    const span = document.createElement("span");
+    const objs = scene.getObjectsForObjective(obj);
+    const done = scene.allFound(objs);
+    span.textContent = `${done ? "✅➜ " : ""}${obj.emoji || obj.title || "📍"}`;
+    span.style.opacity = done ? "1" : "0.6";
+    if (
+      !done &&
+      renderer &&
+      renderer.currentObjective &&
+      renderer.currentObjective.title === obj.title
+    ) {
+      span.style.outline = "2px solid rgba(255,255,255,0.12)";
+      span.style.padding = "2px 6px";
+      span.style.borderRadius = "6px";
+    }
+    prog.appendChild(span);
+  }
+}
+
 async function init() {
   if (!canvas) throw new Error("Canvas #game not found");
 
@@ -61,54 +107,6 @@ async function init() {
       a[j] = tmp;
     }
     return a;
-  }
-
-  // objective progress UI updater (top-right of camera frame)
-  function updateObjectiveProgress() {
-    const frame = document.getElementById("camera-frame");
-    if (!frame || !scene) return;
-    let prog = document.getElementById("objectiveProgress");
-    if (!prog) {
-      prog = document.createElement("div");
-      prog.id = "objectiveProgress";
-      prog.style.position = "absolute";
-      prog.style.top = "8px";
-      prog.style.right = "8px";
-      prog.style.zIndex = "70";
-      prog.style.display = "flex";
-      prog.style.gap = "6px";
-      prog.style.alignItems = "center";
-      prog.style.padding = "6px";
-      prog.style.background = "rgba(0,0,0,0.18)";
-      prog.style.borderRadius = "8px";
-      prog.style.backdropFilter = "blur(4px)";
-      prog.style.color = "#fff";
-      prog.style.fontSize = "18px";
-      frame.appendChild(prog);
-    }
-
-    prog.innerHTML = "";
-    const objectives = scene.definition.objectives || [];
-    for (const obj of objectives) {
-      const span = document.createElement("span");
-      const objs = scene.getObjectsForObjective(obj);
-      const done = scene.allFound(objs);
-      span.textContent = `${done ? "✅➜ " : ""}${
-        obj.emoji || obj.title || "📍"
-      }`;
-      span.style.opacity = done ? "1" : "0.6";
-      if (
-        !done &&
-        renderer &&
-        renderer.currentObjective &&
-        renderer.currentObjective.title === obj.title
-      ) {
-        span.style.outline = "2px solid rgba(255,255,255,0.12)";
-        span.style.padding = "2px 6px";
-        span.style.borderRadius = "6px";
-      }
-      prog.appendChild(span);
-    }
   }
 
   // initial resize and on window resize
@@ -175,9 +173,27 @@ async function init() {
     const sceneSelectEl = document.getElementById("sceneSelect");
     if (sceneSelectEl) sceneSelectEl.style.display = "none";
 
-    // wire camera controller for the newly loaded scene
+    // Adjust UI for scene type: for `wimmelbild` mode hide camera controls
+    // (shutter and scene selector) but keep the objective emoji visible.
+    const uiEl = document.getElementById("ui");
+    const viewfinderEl = document.querySelector(
+      ".viewfinder"
+    ) as HTMLElement | null;
+    if (scene.definition.sceneType === "wimmelbild") {
+      if (uiEl) uiEl.style.display = "none";
+      if (viewfinderEl) viewfinderEl.style.display = "none";
+    } else {
+      if (uiEl) uiEl.style.display = "";
+      if (viewfinderEl) viewfinderEl.style.display = "";
+    }
+
+    // wire camera controller for the newly loaded scene (only for photo mode)
     if (renderer.viewport) {
-      cameraCtrl = new CameraController(scene, renderer.viewport as any);
+      if (scene.definition.sceneType === "photo") {
+        cameraCtrl = new CameraController(scene, renderer.viewport as any);
+      } else {
+        cameraCtrl = null;
+      }
     }
 
     // update select value so UI reflects current scene
@@ -602,9 +618,9 @@ function onCanvasClick(e: MouseEvent) {
   const worldX = vx + (clickX / canvas.width) * renderer.viewport.width;
   const worldY = vy + (clickY / canvas.height) * renderer.viewport.height;
 
-  // store for shutter usage
-  lastTapWorld = { x: worldX, y: worldY };
-  console.log("[main] onCanvasClick world coords", lastTapWorld);
+  // For photo mode, store last tap for the shutter to use. For wimmelbild mode
+  // we perform an immediate sample against the mask and mark found if hit.
+  console.log("[main] onCanvasClick world coords", { x: worldX, y: worldY });
 
   if (
     worldX < 0 ||
@@ -614,8 +630,113 @@ function onCanvasClick(e: MouseEvent) {
   )
     return;
 
-  // don't auto-sample or mark found on canvas clicks; shutter triggers capture only
-  // lastTapWorld recorded above will be used by the shutter if provided
+  if (scene.definition.sceneType === "wimmelbild") {
+    // immediate sample on mask and mark found
+    try {
+      const tmp = document.createElement("canvas");
+      tmp.width = scene.mask.width;
+      tmp.height = scene.mask.height;
+      const tctx = tmp.getContext("2d", { willReadFrequently: true });
+      if (!tctx) return;
+      tctx.drawImage(scene.mask, 0, 0);
+      const sampleX = Math.round(worldX);
+      const sampleY = Math.round(worldY);
+      const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
+      const p = imgData?.data;
+      if (!p) return;
+
+      const tryHex = (r: number, g: number, b: number) =>
+        (scene.constructor as any).rgbToHex(r, g, b);
+
+      let hex = tryHex(p[0], p[1], p[2]);
+      const alpha = p[3] ?? 255;
+      let foundName: string | null = null;
+
+      if (alpha === 0 || hex === "#000000") {
+        // search nearby pixels for most common non-transparent color
+        const radius = 12;
+        const w = tmp.width;
+        const h = tmp.height;
+        const counts = new Map<string, number>();
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const sx = sampleX + dx;
+            const sy = sampleY + dy;
+            if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+            const d = tctx.getImageData(sx, sy, 1, 1).data;
+            if (!d) continue;
+            if ((d[3] ?? 255) === 0) continue;
+            const hcol = tryHex(d[0], d[1], d[2]);
+            if (hcol === "#000000") continue;
+            counts.set(hcol, (counts.get(hcol) || 0) + 1);
+          }
+        }
+        if (counts.size > 0) {
+          let best = "";
+          let bestCount = 0;
+          for (const [k, v] of counts) {
+            if (v > bestCount) {
+              best = k;
+              bestCount = v;
+            }
+          }
+          hex = best;
+          foundName = scene.markFoundByColor(hex);
+        }
+      } else {
+        foundName = scene.markFoundByColor(hex);
+      }
+
+      if (foundName) {
+        // visual feedback, persist found state and update objectives
+        if (renderer) renderer.triggerFlash();
+        updateObjectiveProgress();
+        // advance objective if completed (same logic as shutter flow)
+        try {
+          const objectives = scene.definition.objectives || [];
+          let currentIndex = objectives.findIndex(
+            (o) => o === renderer.currentObjective
+          );
+          if (currentIndex < 0) currentIndex = 0;
+
+          const currentObj = objectives[currentIndex];
+          const objectiveObjects = scene.getObjectsForObjective(currentObj);
+
+          if (scene.allFound(objectiveObjects)) {
+            if (currentIndex + 1 < objectives.length) {
+              const nextObj = objectives[currentIndex + 1];
+              const nextTag =
+                nextObj.tags && nextObj.tags.length
+                  ? nextObj.tags[0]
+                  : nextObj.tag || "";
+              renderer.currentObjective = {
+                title: nextObj.title,
+                tag: nextTag,
+                emoji: nextObj.emoji,
+              };
+              const objEl2 = document.getElementById("objective");
+              if (objEl2 && nextObj) {
+                objEl2.textContent = nextObj.emoji || nextObj.title || "📍";
+              }
+              updateObjectiveProgress();
+            } else {
+              // final objective complete — renderer will show celebration
+              updateObjectiveProgress();
+            }
+          }
+        } catch (e) {
+          console.error("Error advancing objectives (wimmelbild)", e);
+        }
+      }
+    } catch (e) {
+      console.error("Wimmelbild click handling failed", e);
+    }
+
+    return;
+  }
+
+  // store for shutter usage (photo mode)
+  lastTapWorld = { x: worldX, y: worldY };
 }
 
 function loop(ts: number) {
