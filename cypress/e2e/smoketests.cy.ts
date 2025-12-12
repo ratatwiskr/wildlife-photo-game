@@ -20,7 +20,7 @@ describe("Smoketests", () => {
 
     cy.get(".scene-grid .scene-card:first").click();
 
-    cy.url().should("include", "scene=jungle_adventure_with_sun");
+    cy.url().should("include", "scene=dev");
 
     cy.wait(500);
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
