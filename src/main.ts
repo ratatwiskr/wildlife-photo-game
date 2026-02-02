@@ -188,7 +188,7 @@ async function init() {
     // (shutter and scene selector) but keep the objective emoji visible.
     const uiEl = document.getElementById("ui");
     const viewfinderEl = document.querySelector(
-      ".viewfinder"
+      ".viewfinder",
     ) as HTMLElement | null;
     if (scene.definition.sceneType === "wimmelbild") {
       if (uiEl) uiEl.style.display = "none";
@@ -209,7 +209,7 @@ async function init() {
 
     // update select value so UI reflects current scene
     const sceneSelectEl2 = document.getElementById(
-      "sceneSelect"
+      "sceneSelect",
     ) as HTMLSelectElement | null;
     if (sceneSelectEl2) sceneSelectEl2.value = name;
 
@@ -239,69 +239,56 @@ async function init() {
       });
     }
 
-    // populate scene picker from manifest (assets/scenes/scene-manifest.json)
-    // Populate scene picker by scanning the scenes directory for .json files
+    // populate scene picker from manifest (assets/scenes/scenes-manifest.json)
     try {
-      const dirRes = await fetch(`${basePath}/assets/scenes/`);
-      if (dirRes.ok) {
-        const text = await dirRes.text();
-        // find hrefs that end with .json
-        const re = /href\s*=\s*"([^"]+\.json)"/g;
-        const names = new Set<string>();
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(text))) {
-          const href = m[1];
-          // skip any entries inside a `template/` directory
-          if (/\/template\//i.test(href) || /^template\//i.test(href)) {
-            console.debug("[main] skipping template folder entry", href);
-            continue;
-          }
-          const base = href.replace(/\.json$/, "").replace(/.*\//, "");
-          names.add(base);
+      const scenes = await loadAvailableScenes();
+      const picker = document.getElementById("sceneList");
+      if (picker && scenes.length > 0) {
+        picker.innerHTML = "";
+        // create grouping containers for scene types
+        const photoGroup = document.createElement("div");
+        const wimmelGroup = document.createElement("div");
+        const photoHeader = document.createElement("h3");
+        photoHeader.textContent = "Photo scenes";
+        const wimmelHeader = document.createElement("h3");
+        wimmelHeader.textContent = "Wimmelbild scenes";
+        photoGroup.appendChild(photoHeader);
+        wimmelGroup.appendChild(wimmelHeader);
+
+        console.debug(
+          "[main] loaded scenes from manifest, found",
+          scenes.length,
+        );
+
+        for (const sceneData of scenes) {
+          // each createSceneCard will decide whether to append to photo or wimmel group
+          await createSceneCard(
+            picker,
+            sceneData.name,
+            photoGroup,
+            wimmelGroup,
+          );
         }
-        const list = Array.from(names);
-        console.debug("[main] scanned scene directory, found", list);
-        const picker = document.getElementById("sceneList");
-        if (picker) {
-          picker.innerHTML = "";
-          // create grouping containers for scene types
-          const photoGroup = document.createElement("div");
-          const wimmelGroup = document.createElement("div");
-          const photoHeader = document.createElement("h3");
-          photoHeader.textContent = "Photo scenes";
-          const wimmelHeader = document.createElement("h3");
-          wimmelHeader.textContent = "Wimmelbild scenes";
-          photoGroup.appendChild(photoHeader);
-          wimmelGroup.appendChild(wimmelHeader);
 
-          for (const name of list) {
-            // each createSceneCard will decide whether to append to photo or wimmel group
-            await createSceneCard(picker, name, photoGroup, wimmelGroup);
-          }
+        // append groups if they have items (beyond the headers)
+        if (photoGroup.childElementCount > 1) picker.appendChild(photoGroup);
+        if (wimmelGroup.childElementCount > 1) picker.appendChild(wimmelGroup);
 
-          // append groups if they have items (beyond the headers)
-          if (photoGroup.childElementCount > 1) picker.appendChild(photoGroup);
-          if (wimmelGroup.childElementCount > 1)
-            picker.appendChild(wimmelGroup);
-
-          // add a close button to return to current scene without changing it
-          const close = document.createElement("button");
-          close.textContent = "Close";
-          close.style.display = "block";
-          close.style.marginTop = "12px";
-          close.addEventListener("click", () => {
-            const vp = document.getElementById("viewport");
-            const scenePickerEl = document.getElementById("scenePicker");
-            if (scenePickerEl) scenePickerEl.style.display = "none";
-            if (vp) vp.style.display = "inline-block";
-          });
-          picker.appendChild(close);
-        }
-      } else {
-        console.warn("[main] directory scan failed", dirRes.status);
+        // add a close button to return to current scene without changing it
+        const close = document.createElement("button");
+        close.textContent = "Close";
+        close.style.display = "block";
+        close.style.marginTop = "12px";
+        close.addEventListener("click", () => {
+          const vp = document.getElementById("viewport");
+          const scenePickerEl = document.getElementById("scenePicker");
+          if (scenePickerEl) scenePickerEl.style.display = "none";
+          if (vp) vp.style.display = "inline-block";
+        });
+        picker.appendChild(close);
       }
     } catch (e) {
-      console.warn("[main] directory scan error", e);
+      console.warn("[main] scene picker loading error", e);
     }
 
     // helper to create a card DOM node
@@ -309,7 +296,7 @@ async function init() {
       picker: HTMLElement,
       name: string,
       photoGroup: HTMLElement,
-      wimmelGroup: HTMLElement
+      wimmelGroup: HTMLElement,
     ) {
       const card = document.createElement("div");
       card.className = "scene-card";
@@ -329,7 +316,7 @@ async function init() {
           console.debug(
             "[main] scene json fetch failed for",
             name,
-            jres.status
+            jres.status,
           );
           return;
         }
@@ -350,7 +337,7 @@ async function init() {
           console.debug(
             "[main] skipping scene because image/mask missing",
             name,
-            { img: imgRes.status, mask: maskRes.status }
+            { img: imgRes.status, mask: maskRes.status },
           );
           return;
         }
@@ -428,7 +415,7 @@ async function init() {
           emoji: o.emoji || o.title,
           tag: o.tag || (o.tags && o.tags[0]) || undefined,
           found: scene.getObjectsForObjective(o).filter((a) => a.found).length,
-        }))
+        })),
       );
 
       // pick next unfound target for current objective
@@ -439,8 +426,8 @@ async function init() {
       const objects = obj
         ? scene.getObjectsForObjective(obj)
         : fallback
-        ? scene.getObjectsForObjective(fallback)
-        : scene.definition.objects;
+          ? scene.getObjectsForObjective(fallback)
+          : scene.definition.objects;
       const target = objects.find((a) => !a.found);
       if (!target) {
         console.log("[main] no target remains");
@@ -487,7 +474,7 @@ async function init() {
         const captureRes = cameraCtrl.attemptCapture(
           tapX,
           tapY,
-          (renderer as any).currentObjective
+          (renderer as any).currentObjective,
         );
 
         // show flash immediately
@@ -515,7 +502,7 @@ async function init() {
                   const objectives = scene.definition.objectives || [];
                   // Determine index of current objective in the scene definition
                   let currentIndex = objectives.findIndex(
-                    (o) => o === renderer.currentObjective
+                    (o) => o === renderer.currentObjective,
                   );
                   if (currentIndex < 0) currentIndex = 0;
 
@@ -545,7 +532,7 @@ async function init() {
                       // don't celebrate yet; wait until final objective completed
                       console.log(
                         "[main] objective completed, advanced to next",
-                        nextObj
+                        nextObj,
                       );
                       // refresh top-right progress UI
                       updateObjectiveProgress();
@@ -562,7 +549,7 @@ async function init() {
                   console.error("Error advancing objectives", e);
                 }
               },
-              { once: true }
+              { once: true },
             );
           }, 1000);
         }
@@ -578,6 +565,31 @@ async function init() {
   }
 
   requestAnimationFrame(loop);
+}
+
+/**
+ * Load available scenes from scenes-manifest.json
+ * Returns array of scene objects with name and sceneType
+ */
+async function loadAvailableScenes(): Promise<
+  Array<{ name: string; sceneType: string }>
+> {
+  const manifestUrl = `${basePath}/assets/scenes/scenes-manifest.json`;
+  try {
+    const res = await fetch(manifestUrl);
+    if (!res.ok) {
+      throw new Error(`Failed to load scenes manifest: ${res.status}`);
+    }
+    const scenes = await res.json();
+    return scenes;
+  } catch (error) {
+    console.error(
+      "[main] loadAvailableScenes error:",
+      error instanceof Error ? error.message : error,
+    );
+    alert("Failed to load scenes. Please refresh the page.");
+    return [];
+  }
 }
 
 // Toggle visual debug overlays with 'd' key: crosshair, mask, and transparent camera body
@@ -706,7 +718,7 @@ function onCanvasClick(e: MouseEvent) {
         try {
           const objectives = scene.definition.objectives || [];
           let currentIndex = objectives.findIndex(
-            (o) => o === renderer.currentObjective
+            (o) => o === renderer.currentObjective,
           );
           if (currentIndex < 0) currentIndex = 0;
 
@@ -771,24 +783,14 @@ function populateSceneSelect() {
   (async () => {
     sceneSelect.innerHTML = "";
     const current = new URLSearchParams(globalThis.location.search).get(
-      "scene"
+      "scene",
     );
     try {
-      const dirRes = await fetch(`${basePath}/assets/scenes/`);
-      if (!dirRes.ok) return;
-      const text = await dirRes.text();
-      const re = /href\s*=\s*"([^"]+\.json)"/g;
-      const names = new Set<string>();
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(text))) {
-        const href = m[1];
-        if (/\/template\//i.test(href) || /^template\//i.test(href)) continue;
-        const base = href.replace(/\.json$/, "").replace(/.*\//, "");
-        names.add(base);
-      }
+      const scenes = await loadAvailableScenes();
 
-      for (const name of names) {
+      for (const sceneData of scenes) {
         try {
+          const name = sceneData.name;
           const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
           if (!jres.ok) continue;
           const def = await jres.json();

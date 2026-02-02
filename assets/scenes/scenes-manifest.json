@@ -1,0 +1,18 @@
+[
+  {
+    "name": "dev",
+    "sceneType": "photo"
+  },
+  {
+    "name": "jungle_adventure",
+    "sceneType": "photo"
+  },
+  {
+    "name": "jungle_adventure_with_sun",
+    "sceneType": "photo"
+  },
+  {
+    "name": "wimmelbild_jungle_adventure",
+    "sceneType": "wimmelbild"
+  }
+]
