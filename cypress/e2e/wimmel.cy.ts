@@ -1,3 +1,5 @@
+require("cypress-terminal-report/src/installLogsCollector")();
+
 describe("Wimmelbild flow", () => {
   beforeEach(() => {
     cy.visit("/?scene=wimmelbild_jungle_adventure");
@@ -25,7 +27,7 @@ describe("Wimmelbild flow", () => {
       const scene = app.scene as any;
       const renderer = app.renderer as any;
       const canvas = win.document.querySelector(
-        '[data-test-id="game-canvas"]'
+        '[data-test-id="game-canvas"]',
       ) as HTMLCanvasElement;
       // pick first object for objective
       const obj = scene.definition.objects[0];
@@ -43,7 +45,7 @@ describe("Wimmelbild flow", () => {
       cy.get('[data-test-id="game-canvas"]').click(
         clickX - clientRect.left,
         clickY - clientRect.top,
-        { force: true }
+        { force: true },
       );
     });
 
