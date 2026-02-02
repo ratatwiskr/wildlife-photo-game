@@ -4,7 +4,7 @@
   "description": "A simple wildlife photography game for kids, playable in the browser or on tablet.",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run generate:scenes-manifest && tsc",
     "tsc:clean": "tsc -b --clean",
     "watch": "tsc --watch",
     "serve": "npx http-server . -p 8090 -c-1",
@@ -14,6 +14,7 @@
     "cy:open": "npx start-test serve http://127.0.0.1:8090 'cypress open'",
     "cy:run": "npx start-test serve http://127.0.0.1:8090 'cypress run'",
     "validate:scenes": "tsx misc/scripts/validateScenes.ts",
+    "generate:scenes-manifest": "tsx misc/scripts/generateSceneManifest.ts",
     "precommit": "npm run validate:scenes"
   },
   "devDependencies": {

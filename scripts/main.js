@@ -220,71 +220,49 @@ async function init() {
                     vp.style.display = "none";
             });
         }
-        // populate scene picker from manifest (assets/scenes/scene-manifest.json)
-        // Populate scene picker by scanning the scenes directory for .json files
+        // populate scene picker from manifest (assets/scenes/scenes-manifest.json)
         try {
-            const dirRes = await fetch(`${basePath}/assets/scenes/`);
-            if (dirRes.ok) {
-                const text = await dirRes.text();
-                // find hrefs that end with .json
-                const re = /href\s*=\s*"([^"]+\.json)"/g;
-                const names = new Set();
-                let m;
-                while ((m = re.exec(text))) {
-                    const href = m[1];
-                    // skip any entries inside a `template/` directory
-                    if (/\/template\//i.test(href) || /^template\//i.test(href)) {
-                        console.debug("[main] skipping template folder entry", href);
-                        continue;
-                    }
-                    const base = href.replace(/\.json$/, "").replace(/.*\//, "");
-                    names.add(base);
+            const scenes = await loadAvailableScenes();
+            const picker = document.getElementById("sceneList");
+            if (picker && scenes.length > 0) {
+                picker.innerHTML = "";
+                // create grouping containers for scene types
+                const photoGroup = document.createElement("div");
+                const wimmelGroup = document.createElement("div");
+                const photoHeader = document.createElement("h3");
+                photoHeader.textContent = "Photo scenes";
+                const wimmelHeader = document.createElement("h3");
+                wimmelHeader.textContent = "Wimmelbild scenes";
+                photoGroup.appendChild(photoHeader);
+                wimmelGroup.appendChild(wimmelHeader);
+                console.debug("[main] loaded scenes from manifest, found", scenes.length);
+                for (const sceneData of scenes) {
+                    // each createSceneCard will decide whether to append to photo or wimmel group
+                    await createSceneCard(picker, sceneData.name, photoGroup, wimmelGroup);
                 }
-                const list = Array.from(names);
-                console.debug("[main] scanned scene directory, found", list);
-                const picker = document.getElementById("sceneList");
-                if (picker) {
-                    picker.innerHTML = "";
-                    // create grouping containers for scene types
-                    const photoGroup = document.createElement("div");
-                    const wimmelGroup = document.createElement("div");
-                    const photoHeader = document.createElement("h3");
-                    photoHeader.textContent = "Photo scenes";
-                    const wimmelHeader = document.createElement("h3");
-                    wimmelHeader.textContent = "Wimmelbild scenes";
-                    photoGroup.appendChild(photoHeader);
-                    wimmelGroup.appendChild(wimmelHeader);
-                    for (const name of list) {
-                        // each createSceneCard will decide whether to append to photo or wimmel group
-                        await createSceneCard(picker, name, photoGroup, wimmelGroup);
-                    }
-                    // append groups if they have items (beyond the headers)
-                    if (photoGroup.childElementCount > 1)
-                        picker.appendChild(photoGroup);
-                    if (wimmelGroup.childElementCount > 1)
-                        picker.appendChild(wimmelGroup);
-                    // add a close button to return to current scene without changing it
-                    const close = document.createElement("button");
-                    close.textContent = "Close";
-                    close.style.display = "block";
-                    close.style.marginTop = "12px";
-                    close.addEventListener("click", () => {
-                        const vp = document.getElementById("viewport");
-                        const scenePickerEl = document.getElementById("scenePicker");
-                        if (scenePickerEl)
-                            scenePickerEl.style.display = "none";
-                        if (vp)
-                            vp.style.display = "inline-block";
-                    });
-                    picker.appendChild(close);
-                }
-            }
-            else {
-                console.warn("[main] directory scan failed", dirRes.status);
+                // append groups if they have items (beyond the headers)
+                if (photoGroup.childElementCount > 1)
+                    picker.appendChild(photoGroup);
+                if (wimmelGroup.childElementCount > 1)
+                    picker.appendChild(wimmelGroup);
+                // add a close button to return to current scene without changing it
+                const close = document.createElement("button");
+                close.textContent = "Close";
+                close.style.display = "block";
+                close.style.marginTop = "12px";
+                close.addEventListener("click", () => {
+                    const vp = document.getElementById("viewport");
+                    const scenePickerEl = document.getElementById("scenePicker");
+                    if (scenePickerEl)
+                        scenePickerEl.style.display = "none";
+                    if (vp)
+                        vp.style.display = "inline-block";
+                });
+                picker.appendChild(close);
             }
         }
         catch (e) {
-            console.warn("[main] directory scan error", e);
+            console.warn("[main] scene picker loading error", e);
         }
         // helper to create a card DOM node
         async function createSceneCard(picker, name, photoGroup, wimmelGroup) {
@@ -518,6 +496,26 @@ async function init() {
     }
     requestAnimationFrame(loop);
 }
+/**
+ * Load available scenes from scenes-manifest.json
+ * Returns array of scene objects with name and sceneType
+ */
+async function loadAvailableScenes() {
+    const manifestUrl = `${basePath}/assets/scenes/scenes-manifest.json`;
+    try {
+        const res = await fetch(manifestUrl);
+        if (!res.ok) {
+            throw new Error(`Failed to load scenes manifest: ${res.status}`);
+        }
+        const scenes = await res.json();
+        return scenes;
+    }
+    catch (error) {
+        console.error("[main] loadAvailableScenes error:", error instanceof Error ? error.message : error);
+        alert("Failed to load scenes. Please refresh the page.");
+        return [];
+    }
+}
 // Toggle visual debug overlays with 'd' key: crosshair, mask, and transparent camera body
 window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === "d") {
@@ -704,22 +702,10 @@ function populateSceneSelect() {
         sceneSelect.innerHTML = "";
         const current = new URLSearchParams(globalThis.location.search).get("scene");
         try {
-            const dirRes = await fetch(`${basePath}/assets/scenes/`);
-            if (!dirRes.ok)
-                return;
-            const text = await dirRes.text();
-            const re = /href\s*=\s*"([^"]+\.json)"/g;
-            const names = new Set();
-            let m;
-            while ((m = re.exec(text))) {
-                const href = m[1];
-                if (/\/template\//i.test(href) || /^template\//i.test(href))
-                    continue;
-                const base = href.replace(/\.json$/, "").replace(/.*\//, "");
-                names.add(base);
-            }
-            for (const name of names) {
+            const scenes = await loadAvailableScenes();
+            for (const sceneData of scenes) {
                 try {
+                    const name = sceneData.name;
                     const jres = await fetch(`${basePath}/assets/scenes/${name}.json`);
                     if (!jres.ok)
                         continue;
