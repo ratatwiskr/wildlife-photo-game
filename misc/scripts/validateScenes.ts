@@ -21,6 +21,10 @@ function listSceneBases(): string[] {
   const files = fs.readdirSync(scenesDir);
   const bases = new Set<string>();
   for (const file of files) {
+    // Skip manifest and template files
+    if (file === "scenes-manifest.json" || file.startsWith("template")) {
+      continue;
+    }
     if (
       file.endsWith(".jpg") ||
       file.endsWith(".png") ||
@@ -71,7 +75,7 @@ for (const base of listSceneBases()) {
   // Validate presence of sceneType
   if (!data.sceneType || !["photo", "wimmelbild"].includes(data.sceneType)) {
     logError(
-      `${base}: Missing or invalid "sceneType" (expected "photo" or "wimmelbild")`
+      `${base}: Missing or invalid "sceneType" (expected "photo" or "wimmelbild")`,
     );
     continue;
   }
@@ -83,9 +87,9 @@ for (const base of listSceneBases()) {
   const colorsFromJson: Set<string> = new Set(
     items
       .map((a: { color: string }) =>
-        a.color ? String(a.color).toUpperCase() : ""
+        a.color ? String(a.color).toUpperCase() : "",
       )
-      .filter((c: string) => !!c)
+      .filter((c: string) => !!c),
   );
 
   for (const c of colorsFromJson.values()) {
@@ -95,7 +99,7 @@ for (const base of listSceneBases()) {
   }
 
   logOk(
-    `${base}: validated (${colorsFromJson.size} entities, type=${data.sceneType})`
+    `${base}: validated (${colorsFromJson.size} entities, type=${data.sceneType})`,
   );
 }
 
