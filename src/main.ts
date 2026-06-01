@@ -6,6 +6,7 @@ import { CameraController } from "./camera/CameraController.js";
 import { PolaroidUI } from "./ui/Polaroid.js";
 import { Confetti } from "./ui/Confetti.js";
 import { basePath } from "./config.js";
+import { sampleMaskPixel } from "./utils/MaskSampler.js";
 
 /**
  * main.ts -- viewport-based scene, mask centroid extraction,
@@ -169,17 +170,6 @@ async function init() {
     }
     isLoaded = true;
 
-    // Expose useful handles for end-to-end tests/debugging
-    try {
-      (globalThis as any).__app = {
-        scene,
-        renderer,
-        cameraCtrl,
-      } as any;
-    } catch (e) {
-      /* ignore */
-    }
-
     // hide the select now that a scene is loaded; keep shutter and objective visible
     const sceneSelectEl = document.getElementById("sceneSelect");
     if (sceneSelectEl) sceneSelectEl.style.display = "none";
@@ -201,10 +191,21 @@ async function init() {
     // wire camera controller for the newly loaded scene (only for photo mode)
     if (renderer.viewport) {
       if (scene.definition.sceneType === "photo") {
-        cameraCtrl = new CameraController(scene, renderer.viewport as any);
+        cameraCtrl = new CameraController(scene, renderer.viewport);
       } else {
         cameraCtrl = null;
       }
+    }
+
+    // Expose useful handles for end-to-end tests/debugging
+    try {
+      window.__app = {
+        scene,
+        renderer,
+        cameraCtrl,
+      };
+    } catch (e) {
+      /* ignore */
     }
 
     // update select value so UI reflects current scene
@@ -387,9 +388,11 @@ async function init() {
     }
 
     canvas.addEventListener("click", onCanvasClick);
+    // TODO: seemingly redundant — loadSceneByName() already created cameraCtrl
+    // at line ~204. Keeping for now to avoid breaking init flow; analyze later.
     // create camera controller wiring shutter + cooldown
     if (renderer.viewport) {
-      cameraCtrl = new CameraController(scene, renderer.viewport as any);
+      cameraCtrl = new CameraController(scene, renderer.viewport);
     }
     shutter.addEventListener("click", async () => {
       console.log("[main] shutter pressed", { lastTapWorld });
@@ -412,7 +415,7 @@ async function init() {
       // pick next unfound target for current objective
       // Use the renderer's currentObjective when present (reflects progression),
       // otherwise fall back to the first defined objective.
-      const obj = (renderer && renderer.currentObjective) as any;
+      const obj = renderer.currentObjective;
       const fallback = scene.definition.objectives?.[0];
       const objects = obj
         ? scene.getObjectsForObjective(obj)
@@ -465,7 +468,7 @@ async function init() {
         const captureRes = cameraCtrl.attemptCapture(
           tapX,
           tapY,
-          (renderer as any).currentObjective,
+          renderer.currentObjective,
         );
 
         // show flash immediately
@@ -478,70 +481,65 @@ async function init() {
           // ... rest of polaroid handling unchanged ...
           setTimeout(() => {
             pausedForPolaroid = true;
-            polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
-            polaroidUi["container"].addEventListener(
-              "click",
-              () => {
-                pausedForPolaroid = false;
-                polaroidUi.hide();
-                renderer.suppressCelebration = false;
+            polaroidUi.onDismiss(() => {
+              pausedForPolaroid = false;
+              renderer.suppressCelebration = false;
 
-                // After a successful capture, check whether the current objective
-                // is now complete. If so, advance to the next objective (if any).
-                // Only when all objectives are complete do we show confetti.
-                try {
-                  const objectives = scene.definition.objectives || [];
-                  // Determine index of current objective in the scene definition
-                  let currentIndex = objectives.findIndex(
-                    (o) => o === renderer.currentObjective,
-                  );
-                  if (currentIndex < 0) currentIndex = 0;
+              // After a successful capture, check whether the current objective
+              // is now complete. If so, advance to the next objective (if any).
+              // Only when all objectives are complete do we show confetti.
+              try {
+                const objectives = scene.definition.objectives || [];
+                // Determine index of current objective in the scene definition
+                let currentIndex = objectives.findIndex(
+                  (o) => o === renderer.currentObjective,
+                );
+                if (currentIndex < 0) currentIndex = 0;
 
-                  const currentObj = objectives[currentIndex];
-                  const objectiveObjects =
-                    scene.getObjectsForObjective(currentObj);
+                const currentObj = objectives[currentIndex];
+                const objectiveObjects =
+                  scene.getObjectsForObjective(currentObj);
 
-                  if (scene.allFound(objectiveObjects)) {
-                    // If there is another objective after this one, advance to it
-                    if (currentIndex + 1 < objectives.length) {
-                      const nextObj = objectives[currentIndex + 1];
-                      const nextTag =
-                        nextObj.tags && nextObj.tags.length
-                          ? nextObj.tags[0]
-                          : nextObj.tag || "";
-                      renderer.currentObjective = {
-                        title: nextObj.title,
-                        tag: nextTag,
-                        emoji: nextObj.emoji,
-                      };
-                      // update HUD objective emoji/title
-                      const objEl = document.getElementById("objective");
-                      if (objEl && nextObj) {
-                        objEl.textContent =
-                          nextObj.emoji || nextObj.title || "📍";
-                      }
-                      // don't celebrate yet; wait until final objective completed
-                      console.log(
-                        "[main] objective completed, advanced to next",
-                        nextObj,
-                      );
-                      // refresh top-right progress UI
-                      updateObjectiveProgress();
-                    } else {
-                      // last objective completed — celebrate
-                      confetti.burst(60);
-                      confetti.startContinuous(6);
-                      setTimeout(() => confetti.stop(), 2000);
-                      // final update of progress UI
-                      updateObjectiveProgress();
+                if (scene.allFound(objectiveObjects)) {
+                  // If there is another objective after this one, advance to it
+                  if (currentIndex + 1 < objectives.length) {
+                    const nextObj = objectives[currentIndex + 1];
+                    const nextTag =
+                      nextObj.tags && nextObj.tags.length
+                        ? nextObj.tags[0]
+                        : nextObj.tag || "";
+                    renderer.currentObjective = {
+                      title: nextObj.title,
+                      tag: nextTag,
+                      emoji: nextObj.emoji,
+                    };
+                    // update HUD objective emoji/title
+                    const objEl = document.getElementById("objective");
+                    if (objEl && nextObj) {
+                      objEl.textContent =
+                        nextObj.emoji || nextObj.title || "📍";
                     }
+                    // don't celebrate yet; wait until final objective completed
+                    console.log(
+                      "[main] objective completed, advanced to next",
+                      nextObj,
+                    );
+                    // refresh top-right progress UI
+                    updateObjectiveProgress();
+                  } else {
+                    // last objective completed — celebrate
+                    confetti.burst(60);
+                    confetti.startContinuous(6);
+                    setTimeout(() => confetti.stop(), 2000);
+                    // final update of progress UI
+                    updateObjectiveProgress();
                   }
-                } catch (e) {
-                  console.error("Error advancing objectives", e);
                 }
-              },
-              { once: true },
-            );
+              } catch (e) {
+                console.error("Error advancing objectives", e);
+              }
+            });
+            polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
           }, 1000);
         }
         return;
@@ -594,11 +592,11 @@ window.addEventListener("keydown", (e) => {
         else frame.classList.remove("debug-mode");
       }
       // if we have a camera controller, expose its aim tolerance for rendering
-      if ((cameraCtrl as any) && renderer.debug) {
-        const tol = (cameraCtrl as any).getAimTolerance?.();
-        if (tol) (renderer as any).debugTolerance = tol;
+      if (cameraCtrl && renderer.debug) {
+        const tol = cameraCtrl.getAimTolerance?.();
+        if (tol) renderer.debugTolerance = tol;
       } else {
-        (renderer as any).debugTolerance = undefined;
+        renderer.debugTolerance = undefined;
       }
       console.log("[main] debug mode", renderer.debug);
     }
@@ -647,59 +645,8 @@ function onCanvasClick(e: MouseEvent) {
   if (scene.definition.sceneType === "wimmelbild") {
     // immediate sample on mask and mark found
     try {
-      const tmp = document.createElement("canvas");
-      tmp.width = scene.mask.width;
-      tmp.height = scene.mask.height;
-      const tctx = tmp.getContext("2d", { willReadFrequently: true });
-      if (!tctx) return;
-      tctx.drawImage(scene.mask, 0, 0);
-      const sampleX = Math.round(worldX);
-      const sampleY = Math.round(worldY);
-      const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
-      const p = imgData?.data;
-      if (!p) return;
-
-      const tryHex = (r: number, g: number, b: number) =>
-        (scene.constructor as any).rgbToHex(r, g, b);
-
-      let hex = tryHex(p[0], p[1], p[2]);
-      const alpha = p[3] ?? 255;
-      let foundName: string | null = null;
-
-      if (alpha === 0 || hex === "#000000") {
-        // search nearby pixels for most common non-transparent color
-        const radius = 12;
-        const w = tmp.width;
-        const h = tmp.height;
-        const counts = new Map<string, number>();
-        for (let dy = -radius; dy <= radius; dy++) {
-          for (let dx = -radius; dx <= radius; dx++) {
-            const sx = sampleX + dx;
-            const sy = sampleY + dy;
-            if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
-            const d = tctx.getImageData(sx, sy, 1, 1).data;
-            if (!d) continue;
-            if ((d[3] ?? 255) === 0) continue;
-            const hcol = tryHex(d[0], d[1], d[2]);
-            if (hcol === "#000000") continue;
-            counts.set(hcol, (counts.get(hcol) || 0) + 1);
-          }
-        }
-        if (counts.size > 0) {
-          let best = "";
-          let bestCount = 0;
-          for (const [k, v] of counts) {
-            if (v > bestCount) {
-              best = k;
-              bestCount = v;
-            }
-          }
-          hex = best;
-          foundName = scene.markFoundByColor(hex);
-        }
-      } else {
-        foundName = scene.markFoundByColor(hex);
-      }
+      const hex = sampleMaskPixel(scene.mask, worldX, worldY);
+      const foundName: string | null = hex ? scene.markFoundByColor(hex) : null;
 
       if (foundName) {
         // visual feedback, persist found state and update objectives

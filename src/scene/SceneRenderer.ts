@@ -22,7 +22,11 @@ export class SceneRenderer {
   private flashActive = false;
   public suppressCelebration = false;
 
+  // tolerance radius in world pixels for debug crosshair overlay (set by main.ts)
+  public debugTolerance?: number;
+
   private objectiveColors: Record<string, string> = {};
+
   public currentObjective?: { title: string; tag: string; emoji?: string };
 
   constructor(canvas: HTMLCanvasElement) {
@@ -161,8 +165,8 @@ export class SceneRenderer {
         // draw the capture radius in world pixels translated to screen pixels.
         // Note: SceneRenderer doesn't directly own camera controller; main.ts can
         // set a helper value on renderer.debugTolerance when toggling debug.
-        if ((this as any).debugTolerance) {
-          const tolWorld = (this as any).debugTolerance as number;
+        if (this.debugTolerance) {
+          const tolWorld = this.debugTolerance;
           const screenRadius = Math.round(
             tolWorld * (this.canvas.width / this.viewport.width)
           );

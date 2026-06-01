@@ -8,11 +8,11 @@ V2 corrects inaccuracies in the V1 plan based on source code verification. Same 
 
 | Metric | Value |
 |--------|-------|
-| main.ts | ~860 lines (InputHandler removed) |
-| `as any` casts | ~12 instances |
-| Known bugs fixed | Double-panning (removed redundant InputHandler) |
-| Known bugs remaining | Viewport type collision (double cast), `__app.cameraCtrl` always null (export fires before assignment) |
-| Test suite | 10 tests, **8 passing, 2 skipped** (stable across 8 consecutive runs) |
+| main.ts | ~806 lines (InputHandler removed, MaskSampler extracted) |
+| `as any` casts | **0** (was ~15, all eliminated in Phase 2) |
+| Known bugs fixed | Double-panning, Viewport double-cast, `__app.cameraCtrl` always null, polaroid private access |
+| Known bugs remaining | None |
+| Test suite | 10 tests, **8 passing, 2 skipped** (stable across 8+ consecutive runs) |
 
 ---
 
@@ -46,33 +46,36 @@ V2 corrects inaccuracies in the V1 plan based on source code verification. Same 
 
 ---
 
-## Phase 2 — Fix Type Safety
+## Phase 2 — Fix Type Safety (✅ Complete)
 
-- [ ] **2.1 — Fix Viewport type collision**
-  - CameraController imports `Viewport` interface from `./AimAssist.js` instead of the real `Viewport` class from `./scene/Viewport.js`
-  - Forces `this.viewport as unknown as Viewport` double cast at line 121
-  - Fix: change import in CameraController.ts, remove the duplicate interface from AimAssist.ts
-- [ ] **2.2 — Eliminate all `any` casts** (~12 instances)
-  - `target: any` in `nudgeToTarget()` → type as `SceneObject`
-  - `objective?: any` in `attemptCapture()` → type as `Objective`
-  - `(renderer as any).currentObjective` → declare `currentObjective` on SceneRenderer
-  - `(scene.constructor as any).rgbToHex` → access via `Scene.rgbToHex`
-  - `(globalThis as any).__app` → declare `Window.__app` interface
-  - `polaroidUi["container"]` → add public accessor to PolaroidUI
-  - `({ willReadFrequently: true } as any)` → add Canvas2D type extension
-  - `renderer.viewport as any` → proper Viewport type after 2.1 fix
-  - `(cameraCtrl as any)` → type guard or null check
+- [x] **2.1 — Fix Viewport type collision**
+  - Changed CameraController import to real `Viewport` class from `./scene/Viewport.js`
+  - Removed duplicate `Viewport` interface from `AimAssist.ts`
+  - Removed `as unknown as Viewport` double cast
+- [x] **2.2 — Eliminate all `any` casts** (15 instances eliminated)
+  - `target: any` → `SceneObject`
+  - `objective?: any` → `Objective`
+  - `(renderer as any).currentObjective` → public property (already declared)
+  - `(scene.constructor as any).rgbToHex` → `Scene.rgbToHex`
+  - `(globalThis as any).__app` → `window.__app` via `src/types.d.ts` interface declaration
+  - `polaroidUi["container"]` → `onDismiss(cb)` public API on PolaroidUI
+  - `({ willReadFrequently: true } as any)` → native TS type support (TS 5.9)
+  - `renderer.viewport as any` → proper Viewport type (via 2.1 fix)
+  - `(cameraCtrl as any)` → optional chaining (`cameraCtrl?.`)
+  - `(this as any).debugTolerance` → public `debugTolerance` property on SceneRenderer
 
 ---
 
-## Phase 3 — Extract Shared Utilities
+## Phase 3 — Extract Shared Utilities (✅ Complete)
 
-- [ ] **3.1 — Extract MaskSampler utility**
-  - Duplicated mask sampling logic: ~30 lines in `main.ts` wimmelbild handler + ~50 lines in `CameraController.attemptCapture()`
-  - Both sample mask pixels, search nearby for transparent/black hits, call `markFoundByColor`
-- [ ] **3.2 — Encapsulate PolaroidUI**
-  - `main.ts:491` accesses `polaroidUi["container"]` (private field via bracket)
-  - Add `onDismiss(cb)` public API instead
+- [x] **3.1 — Extract MaskSampler utility** (`src/utils/MaskSampler.ts`)
+  - Created `sampleMaskPixel(mask, x, y, radius?)` function — single source for mask pixel sampling + nearby majority-vote search
+  - Removed ~65 lines of duplicated code from `CameraController.attemptCapture()`
+  - Removed ~50 lines of duplicated code from `main.ts` wimmelbild handler
+  - Both callers now: `const hex = sampleMaskPixel(mask, x, y); if (hex) found = scene.markFoundByColor(hex);`
+- [x] **3.2 — Encapsulate PolaroidUI**
+  - Added `onDismiss(cb)` public API on PolaroidUI (done in Phase 2.4)
+  - Removed all `polaroidUi["container"]` bracket accesses from `main.ts`
 
 ---
 
@@ -92,7 +95,7 @@ V2 corrects inaccuracies in the V1 plan based on source code verification. Same 
 
 | Bug | Location | Impact | Fix planned |
 |-----|----------|--------|-------------|
-| `__app.cameraCtrl` always `null` | `main.ts:174` vs `:204` | `__app` export fires before `cameraCtrl` assignment | Move `cameraCtrl` assignment before `__app` export, or re-export after assignment |
+| `__app.cameraCtrl` always `null` | `main.ts:174` vs `:204` | `__app` export fires before `cameraCtrl` assignment | **Fixed:** moved `__app` export block after `cameraCtrl` assignment |
 | Multi-objective flakiness | `smoketests.cy.ts:252` (fixed) | Polaroid overlay not found on second capture ~50% | Fixed: target-finding via `currentObjective` + `getObjectsForObjective` + `{ force: true }` |
 | Double-panning | `main.ts:390` vs `:831` (fixed) | Both handlers pan viewport, different DPR math | Fixed: removed InputHandler |
 
@@ -105,3 +108,7 @@ npm run build && npm run cy:run
 ```
 
 Expected: compiles cleanly, 8/8 tests pass (2 are skipped).
+
+## Notable Items
+
+- A `TODO` comment was added above the seemingly duplicate `cameraCtrl = new CameraController(...)` at `main.ts:391` for future analysis (not removed, keeping safe).

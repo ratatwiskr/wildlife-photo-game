@@ -1,6 +1,8 @@
-import { Scene } from "../scene/Scene.js";
-import { AimAssist, Viewport } from "./AimAssist.js";
+import { Scene, SceneObject, Objective } from "../scene/Scene.js";
+import { Viewport } from "../scene/Viewport.js";
+import { AimAssist } from "./AimAssist.js";
 import { Cooldown } from "../utils/Cooldown.js";
+import { sampleMaskPixel } from "../utils/MaskSampler.js";
 
 export class CameraController {
   private viewport: Viewport;
@@ -26,7 +28,7 @@ export class CameraController {
    */
   // returns 'nudged' | 'skipped-too-far' | 'already-centered'
   nudgeToTarget(
-    target: any,
+    target: SceneObject,
     duration = 900
   ): Promise<"nudged" | "skipped-too-far" | "already-centered"> {
     return new Promise((resolve) => {
@@ -99,7 +101,7 @@ export class CameraController {
   attemptCapture(
     tapWorldX?: number,
     tapWorldY?: number,
-    objective?: any
+    objective?: Objective
   ): { name: string; polaroid?: HTMLCanvasElement } | null {
     console.log("[camera] attemptCapture", { tapWorldX, tapWorldY, objective });
     if (this.cooldown.isActive()) {
@@ -118,7 +120,7 @@ export class CameraController {
     // If not in view, don't auto-nudge here; caller should call nudgeToTarget()
     if (
       !this.aimAssist.isObjectInView(
-        this.viewport as unknown as Viewport,
+        this.viewport,
         target
       )
     ) {
@@ -135,78 +137,15 @@ export class CameraController {
     );
 
     try {
-      const tmp = document.createElement("canvas");
-      tmp.width = this.scene.mask.width;
-      tmp.height = this.scene.mask.height;
-      const tctx = tmp.getContext("2d", { willReadFrequently: true });
-      if (!tctx) {
-        console.log("[camera] no 2d context for mask");
+      const hex = sampleMaskPixel(this.scene.mask, sampleX, sampleY);
+      if (!hex) {
+        console.log("[camera] nothing found at sample", { sampleX, sampleY });
         this.cooldown.trigger();
         return null;
       }
-      tctx.drawImage(this.scene.mask, 0, 0);
-      const imgData = tctx.getImageData(sampleX, sampleY, 1, 1);
-      const p = imgData?.data;
-      if (!p) {
-        console.log("[camera] no pixel data at sample", { sampleX, sampleY });
-        this.cooldown.trigger();
-        return null;
-      }
-      // if pixel is fully transparent or black, attempt a small local search
-      const tryHex = (r: number, g: number, b: number) =>
-        (this.scene.constructor as any).rgbToHex(r, g, b);
-
-      let hex = tryHex(p[0], p[1], p[2]);
-      const alpha = p[3] ?? 255;
-      console.log("[camera] sampled", {
-        sampleX,
-        sampleY,
-        rgba: [p[0], p[1], p[2], alpha],
-      });
-
-      let foundName = null as string | null;
-      if (alpha === 0 || hex === "#000000") {
-        // search nearby pixels in an expanding square for a non-transparent color
-        const radius = 12; // pixels
-        const w = tmp.width;
-        const h = tmp.height;
-        const counts = new Map<string, number>();
-        for (let dy = -radius; dy <= radius; dy++) {
-          for (let dx = -radius; dx <= radius; dx++) {
-            const sx = sampleX + dx;
-            const sy = sampleY + dy;
-            if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
-            const d = tctx.getImageData(sx, sy, 1, 1).data;
-            if (!d) continue;
-            if ((d[3] ?? 255) === 0) continue;
-            const hcol = tryHex(d[0], d[1], d[2]);
-            if (hcol === "#000000") continue;
-            counts.set(hcol, (counts.get(hcol) || 0) + 1);
-          }
-        }
-        if (counts.size > 0) {
-          // pick the most common nearby color
-          let best = "";
-          let bestCount = 0;
-          for (const [k, v] of counts) {
-            if (v > bestCount) {
-              best = k;
-              bestCount = v;
-            }
-          }
-          hex = best;
-          console.log("[camera] nearby color found", hex, bestCount);
-          foundName = this.scene.markFoundByColor(hex);
-        }
-      } else {
-        console.log("[camera] sampled hex", hex);
-        foundName = this.scene.markFoundByColor(hex);
-      }
-
-      // TODO: update / review following method code, does this work with above additions about provided objective?
-
+      const foundName = this.scene.markFoundByColor(hex);
       if (!foundName) {
-        console.log("[camera] nothing found for hex", hex);
+        console.log("[camera] no object matches color", hex);
         this.cooldown.trigger();
         return null;
       }
