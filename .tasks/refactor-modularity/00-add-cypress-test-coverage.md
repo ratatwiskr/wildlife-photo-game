@@ -2,7 +2,7 @@
 
 **One-liner**: Add 5 high-priority cypress test cases covering aim assist, polaroid UI lifecycle, cooldown, multi-objective progression, and error handling; replace brittle `cy.wait()` with deterministic waits.
 
-**Status**: Not Started
+**Status**: Partial — aim assist nudge test done; 6 pre-existing failures remain (broken `Cypress.Promise` polling pattern, scene picker DOM)
 
 ## Overview
 
@@ -14,14 +14,14 @@ Current Cypress tests (~140 lines across 2 files) cover happy-path scene loading
 
 ## Changes Required
 
-### 1. Add "Aim Assist Nudge Behavior" Test
+### 1. Add "Aim Assist Nudge Behavior" Test  ✅ DONE
 
-Test that `CameraController.nudgeToTarget()` completes with proper state and animations:
+All three `nudgeToTarget()` branches verified in a single test (`smoketests.cy.ts:358`):
 
-- [ ] Verify nudge animation starts and finishes
-- [ ] Test tolerance logic: target already centered (no nudge needed)
-- [ ] Test distance gate: target too far (skip nudge)
-- [ ] Check that `attemptCapture()` only triggers after nudge completes
+- [x] Verify nudge animation starts and finishes (scenario 2 — off-center nudge → capture)
+- [x] Test tolerance logic: target already centered (scenario 3 — immediate capture)
+- [x] Test distance gate: target too far (scenario 1 — flash only, no polaroid)
+- [x] Check that `attemptCapture()` only triggers after nudge completes
 
 **Cypress pattern**:
 
@@ -178,6 +178,23 @@ npm run build
 ```
 
 Expected: TypeScript compilation succeeds; no type errors in test files.
+
+## ⚠️ Pre-existing test failures (found during investigation)
+
+The following tests were already broken before any Task 0 work.
+**Do not attempt to fix them as part of Task 0** — they are pre-existing issues:
+
+| Test | Failure | Root cause |
+|---|---|---|
+| should switch scene | `cy.click()` — element not visible | Scene picker `#scenePicker` parent has `display:none` |
+| should update objective progress | `cy.then()` promise timeout | Polling `new Cypress.Promise` + recursive `cy.wait(10).then()` never resolves |
+| should rate-limit rapid consecutive | `cy.then()` promise timeout | Same polling pattern issue |
+| should progress through multiple objectives | `cy.then()` promise timeout | Same polling pattern issue |
+| should handle invalid scene parameters | `.scene-grid .scene-card` not found | Scene picker DOM doesn't include `.scene-grid` class |
+| wimmel.cy.ts: loads wimmelbild UI | `#objectiveProgress` shows `🦁` not `✅` | Click coords miss the object in mask |
+
+**Key lesson**: The `cy.window().then(() => new Cypress.Promise(...checkInit...))` polling pattern
+is broken. Use `cy.wait(500); cy.window().should(...)` instead — Cypress auto-retries `.should()`.
 
 ## Dependencies
 

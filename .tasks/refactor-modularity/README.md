@@ -23,10 +23,10 @@ This task suite refactors the Wildlife Photo Game codebase to improve modularity
 
 Foundation: Remove dead code, establish test safety net, fix type collisions.
 
-- **[00-add-cypress-test-coverage.md](./00-add-cypress-test-coverage.md)** (Step 0)
-  - Add 5 high-priority cypress test cases
-  - Replace brittle `cy.wait()` with deterministic waits
-  - Establish safety net for Tasks 1–7
+- **[00-add-cypress-test-coverage.md](./00-add-cypress-test-coverage.md)** (Step 0) ⚡ PARTIAL
+  - ✅ **Aim assist nudge test added** — covers too-far, off-center nudge, already-centered (3 branches)
+  - ⚠️ 6 pre-existing test failures identified (polling pattern, scene picker DOM) — see task file for details
+  - ➡️ **Next: Task 1** — the nudge test provides sufficient safety net for CameraController changes
 
 - **[01-remove-dead-code.md](./01-remove-dead-code.md)** (Task 1)
   - Remove unused InputHandler instance
@@ -160,4 +160,6 @@ If you encounter issues:
 
 ---
 
-**Start with [00-add-cypress-test-coverage.md](./00-add-cypress-test-coverage.md)**
+**Current state**: Task 0 aim assist nudge test done. Next: **[Task 1 — Remove Dead Code](./01-remove-dead-code.md)**.
+
+> Pre-existing failures (6 tests) documented in `00-add-cypress-test-coverage.md`. Do not fix them here.

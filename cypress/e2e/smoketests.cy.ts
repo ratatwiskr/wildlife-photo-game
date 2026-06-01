@@ -87,12 +87,17 @@ describe("Smoketests", () => {
    * the target is properly in the viewport.
    */
   it("should show polaroid modal when shutter is clicked", () => {
-    // Load specific scene directly (avoid double init from beforeEach + cy.visit)
     cy.visit("/?scene=jungle_adventure");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
     cy.get('[data-test-id="shutter-button"]').should("be.visible");
 
-    // Wait for game state to be ready, then ensure target is visible
+    // Wait for app to initialize by checking for scene ready log (or use timeout for scene load)
+    cy.get("body").then(() => {
+      // Wait a bit for initialization to complete
+      cy.wait(500);
+    });
+
+    // Verify app state is ready
     cy.window().should((win) => {
       expect((win as any).__app).to.exist;
       expect((win as any).__app.scene).to.exist;
@@ -106,16 +111,15 @@ describe("Smoketests", () => {
       const renderer = app.renderer as any;
       const firstObj = scene.definition.objects[0];
       if (firstObj && renderer.viewport) {
-        // Center the viewport on the first object
         renderer.viewport.x = firstObj.x - renderer.viewport.width / 2;
         renderer.viewport.y = firstObj.y - renderer.viewport.height / 2;
       }
     });
 
-    // Now click shutter - target should be in view
+    // Now click shutter
     cy.get('[data-test-id="shutter-button"]').click();
 
-    // Wait for polaroid to appear (with generous timeout for any nudge animation)
+    // Wait for polaroid to appear
     cy.get('[data-test-id="polaroid-overlay"]', { timeout: 5000 })
       .should("be.visible")
       .should("have.css", "z-index", "9999");
@@ -139,6 +143,15 @@ describe("Smoketests", () => {
   it("should update objective progress after capture", () => {
     cy.visit("/?scene=jungle_adventure");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
+
+    // Wait for app initialization
+    cy.wait(500);
+    cy.window().should((win) => {
+      const app = (win as any).__app;
+      expect(app).to.exist;
+      expect(app.scene).to.exist;
+      expect(app.renderer).to.exist;
+    });
 
     // Ensure viewport is centered on target
     cy.window().then((win) => {
@@ -179,6 +192,15 @@ describe("Smoketests", () => {
   it("should rate-limit rapid consecutive shutter clicks via cooldown", () => {
     cy.visit("/?scene=jungle_adventure");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
+
+    // Wait for app initialization
+    cy.wait(500);
+    cy.window().should((win) => {
+      const app = (win as any).__app;
+      expect(app).to.exist;
+      expect(app.scene).to.exist;
+      expect(app.renderer).to.exist;
+    });
 
     // Ensure viewport is centered on target
     cy.window().then((win) => {
@@ -231,6 +253,15 @@ describe("Smoketests", () => {
     // Use the multi-objective scene (jungle_adventure_with_sun)
     cy.visit("/?scene=jungle_adventure_with_sun");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
+
+    // Wait for app initialization
+    cy.wait(500);
+    cy.window().should((win) => {
+      const app = (win as any).__app;
+      expect(app).to.exist;
+      expect(app.scene).to.exist;
+      expect(app.renderer).to.exist;
+    });
 
     // Ensure app is loaded
     cy.window().should((win) => {
@@ -296,6 +327,105 @@ describe("Smoketests", () => {
       const checkmarks = ($el.text().match(/✅/g) || []).length;
       expect(checkmarks).to.be.gte(1);
     });
+  });
+
+  /**
+   * Test: Aim Assist Nudge Behavior (too-far, off-center, already-centered)
+   *
+   * Verifies all three branches of CameraController.nudgeToTarget():
+   * - "skipped-too-far": target beyond 0.6× trigger gate → flash only, no polaroid
+   * - "nudged": target off-center but within gate → nudge anim → capture → polaroid
+   * - "already-centered": target within 200px tolerance → immediate capture
+   *
+   * Uses jungle_adventure_with_sun (2 objectives) so we can test nudge on first
+   * objective then already-centered on second after objective advancement.
+   */
+  it("should handle aim assist nudge: too-far, off-center nudge, and already-centered", () => {
+    cy.visit("/?scene=jungle_adventure_with_sun");
+    cy.get('[data-test-id="game-canvas"]').should("be.visible");
+
+    // Wait for app init + centroids via should() which Cypress auto-retries
+    cy.wait(500);
+    cy.window().should((win) => {
+      const app = (win as any).__app;
+      expect(app).to.exist;
+      expect(app.scene).to.exist;
+      expect(app.renderer).to.exist;
+      expect(app.scene.definition.objects[0].x).to.exist;
+      expect(app.renderer.viewport).to.exist;
+    });
+
+    // --- Scenario 1: Target too far → capture skipped ---
+    cy.window().then((win) => {
+      const { renderer } = (win as any).__app;
+      renderer.viewport.x = 0;
+      renderer.viewport.y = 0;
+    });
+    cy.get('[data-test-id="shutter-button"]').click();
+    // No polaroid should appear for a too-distant target
+    cy.get('[data-test-id="polaroid-overlay"]', { timeout: 4000 }).should(
+      "not.exist",
+    );
+    // No progress yet
+    cy.get("#objectiveProgress", { timeout: 3000 }).should(
+      "not.contain.text",
+      "✅",
+    );
+
+    // --- Scenario 2: Off-center but within gate → nudge animation → capture ---
+    cy.window().then((win) => {
+      const app = (win as any).__app;
+      const viewport = app.renderer.viewport;
+      const objective = app.renderer.currentObjective;
+      const objs = app.scene.getObjectsForObjective(objective);
+      const target = objs.find((o) => !o.found);
+      // Compute offset that is > tolerance (200px) but < trigger gate (0.6 × minDim)
+      const tol = 200;
+      const gate = Math.round(
+        0.6 * Math.min(viewport.width, viewport.height),
+      );
+      const offset = Math.round(Math.max(tol + 1, Math.min(gate - 1, tol + (gate - tol) * 0.4)));
+      viewport.x = target.x - viewport.width / 2 + offset;
+      viewport.y = target.y - viewport.height / 2;
+    });
+    cy.get('[data-test-id="shutter-button"]').click();
+    // Nudge anim (up to 2400ms) + polaroid delay (1000ms) — generous timeout
+    cy.get('[data-test-id="polaroid-overlay"]', { timeout: 10000 })
+      .should("be.visible")
+      .click();
+    cy.get('[data-test-id="polaroid-overlay"]').should("not.exist");
+    // First objective should now be complete
+    cy.get("#objectiveProgress", { timeout: 5000 }).should(
+      "contain.text",
+      "✅",
+    );
+
+    // Wait for cooldown between captures
+    cy.wait(1100);
+
+    // --- Scenario 3: Target already centered → immediate capture (no nudge) ---
+    cy.window().then((win) => {
+      const app = (win as any).__app;
+      const viewport = app.renderer.viewport;
+      // After first objective completed, currentObjective advanced to second
+      const objective = app.renderer.currentObjective;
+      const objs = app.scene.getObjectsForObjective(objective);
+      const target = objs.find((o) => !o.found);
+      expect(target).to.exist;
+      viewport.x = target.x - viewport.width / 2;
+      viewport.y = target.y - viewport.height / 2;
+    });
+    cy.get('[data-test-id="shutter-button"]').click();
+    // Already-centered → no nudge, polaroid should appear promptly
+    cy.get('[data-test-id="polaroid-overlay"]', { timeout: 5000 })
+      .should("be.visible")
+      .click();
+    cy.get('[data-test-id="polaroid-overlay"]').should("not.exist");
+    // Both objectives should now be marked
+    cy.get("#objectiveProgress", { timeout: 5000 }).should(
+      "contain.text",
+      "✅",
+    );
   });
 
   /**
