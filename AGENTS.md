@@ -27,7 +27,8 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
 - Key modules: `Scene` (model), `SceneRenderer` (canvas draw), `Viewport` (pan/clamp math), `CameraController` (shutter + nudge), `InputHandler` (pointer drag — **removed**, inline pointer events at `main.ts:831–866` handle drag instead).
 - Two modes controlled by `sceneType` in scene JSON: `"photo"` (shutter button) or `"wimmelbild"` (direct tap-to-find).
 - Press `d` to toggle debug overlays (mask, crosshair, tolerance circle).
-- **Refactoring plan**: `.tasks/refactor-modularity-v2/README.md` (V2, corrected from stale V1). Current state: Phase 0–1 complete, Phase 2 (type safety) is next.
+- **Refactoring plan**: `.tasks/refactor-modularity-v2/README.md` (V2, corrected from stale V1). Current state: Phase 0–3 complete, Phase 4 (architecture) next.
+- **Plan discipline**: Plans in `.tasks/` must use actionable checkboxes (`- [ ]` / `- [x]`) and be kept in sync with actual implementation state. If new work departs from the plan, update the plan first.
 
 ## Scene assets (`assets/scenes/`)
 
@@ -45,8 +46,8 @@ Each scene is a triplet sharing the same base name: `{name}.jpg`, `{name}_mask.p
 
 ## Known gotchas
 
-- **`__app.cameraCtrl` is always `null`**: `main.ts:174` exports `__app` before `cameraCtrl` is assigned (line 204). Tests survive because they use `__app.renderer.viewport` for positioning and click the shutter DOM button (which uses the module-level `cameraCtrl`). Fix: move `cameraCtrl` assignment before `__app` export, or re-export after.
-- **Viewport type collision**: Two separate `Viewport` types exist — interface in `src/camera/AimAssist.ts:3-8` and class in `src/scene/Viewport.ts`. CameraController imports the interface but receives the class, forcing `as unknown as Viewport` double casts.
+- **`__app.cameraCtrl` was always `null`** (Phase 2.3 — fixed): `__app` export now happens after `cameraCtrl` assignment.
+- **Viewport type collision** (Phase 2.1 — fixed): CameraController now imports the real `Viewport` class; duplicate interface removed from `AimAssist.ts`.
 - **Stale task files**: Always verify dead code claims in `.tasks/` against actual source before removing — the V1 plan had wrong method names and misidentified non-redundant code.
 - **Cypress test patterns for reliability**:
   - Wait for centroids: `expect(app.scene.definition.objects[0].x).to.exist` in a `cy.window().should()` block

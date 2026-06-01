@@ -1,11 +1,5 @@
 import { SceneObject } from "../scene/Scene.js";
-
-export interface Viewport {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { Viewport } from "../scene/Viewport.js";
 
 export class AimAssist {
   private tolerance: number;
