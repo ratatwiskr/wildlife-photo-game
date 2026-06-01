@@ -201,12 +201,6 @@ export class Scene {
     return obj.name;
   }
 
-  // filterActiveAnimals(tag: string) {
-  //   return this.definition.animals
-  //     ? this.definition.animals
-  //     : this.definition.animals.filter((a) => a.tags?.includes(tag));
-  // }
-
   allFound(objects = this.definition.objects): boolean {
     return objects.every((a) => a.found);
   }

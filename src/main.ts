@@ -1,7 +1,7 @@
 // src/main.ts
 import { Scene } from "./scene/Scene.js";
 import { SceneRenderer } from "./scene/SceneRenderer.js";
-import { InputHandler } from "./input/InputHandler.js";
+
 import { CameraController } from "./camera/CameraController.js";
 import { PolaroidUI } from "./ui/Polaroid.js";
 import { Confetti } from "./ui/Confetti.js";
@@ -385,15 +385,6 @@ async function init() {
         console.debug("[main] error fetching scene json for", name, e);
       }
     }
-
-    // Pointer-based pan: we receive dx/dy in screen pixels; convert to world
-    new InputHandler(canvas, (dxScreen, dyScreen) => {
-      if (!renderer.viewport) return;
-      // world delta = (dx / canvas.width) * viewport.width
-      const worldDx = (dxScreen / canvas.width) * renderer.viewport.width;
-      const worldDy = (dyScreen / canvas.height) * renderer.viewport.height;
-      renderer.viewport.pan(-worldDx, -worldDy); // negative because dragging direction -> world movement
-    });
 
     canvas.addEventListener("click", onCanvasClick);
     // create camera controller wiring shutter + cooldown

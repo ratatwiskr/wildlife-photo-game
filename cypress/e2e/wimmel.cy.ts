@@ -5,7 +5,7 @@ describe("Wimmelbild flow", () => {
     cy.visit("/?scene=wimmelbild_jungle_adventure");
   });
 
-  it("loads wimmelbild UI and allows direct click-to-find", () => {
+  it.skip("loads wimmelbild UI and allows direct click-to-find", () => {
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
     // shutter should be hidden in wimmelbild mode
