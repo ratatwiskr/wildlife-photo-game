@@ -1,3 +1,5 @@
+require("cypress-terminal-report/src/installLogsCollector")();
+
 describe("Wimmelbild flow", () => {
   beforeEach(() => {
     cy.visit("/?scene=wimmelbild_jungle_adventure");
@@ -25,14 +27,24 @@ describe("Wimmelbild flow", () => {
       const scene = app.scene as any;
       const renderer = app.renderer as any;
       const canvas = win.document.querySelector(
-        '[data-test-id="game-canvas"]'
+        '[data-test-id="game-canvas"]',
       ) as HTMLCanvasElement;
       // pick first object for objective
       const obj = scene.definition.objects[0];
       expect(obj).to.exist;
 
-      // convert world coords -> client coords
+      // Reposition viewport to center on the target
       const viewport = renderer.viewport as any;
+      viewport.x = Math.max(0, Math.min(
+        obj.x - viewport.width / 2,
+        scene.image.width - viewport.width,
+      ));
+      viewport.y = Math.max(0, Math.min(
+        obj.y - viewport.height / 2,
+        scene.image.height - viewport.height,
+      ));
+
+      // convert world coords -> client coords
       const relX = (obj.x - viewport.x) / viewport.width;
       const relY = (obj.y - viewport.y) / viewport.height;
       const clientRect = canvas.getBoundingClientRect();
@@ -43,7 +55,7 @@ describe("Wimmelbild flow", () => {
       cy.get('[data-test-id="game-canvas"]').click(
         clickX - clientRect.left,
         clickY - clientRect.top,
-        { force: true }
+        { force: true },
       );
     });
 

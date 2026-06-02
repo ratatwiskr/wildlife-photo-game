@@ -1,11 +1,5 @@
 import { SceneObject } from "../scene/Scene.js";
-
-export interface Viewport {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { Viewport } from "../scene/Viewport.js";
 
 export class AimAssist {
   private tolerance: number;
@@ -19,25 +13,6 @@ export class AimAssist {
   public getTolerance(): number {
     return this.tolerance;
   }
-
-  /**
-   * Returns {dx, dy} to nudge the viewport toward animal center
-   * If already centered within tolerance, returns {dx:0, dy:0}
-   */
-  // computeNudge(viewport: Viewport, animal: Animal): { dx: number; dy: number } {
-  // const centerX = viewport.x + viewport.width / 2;
-  // const centerY = viewport.y + viewport.height / 2;
-
-  // TODO
-  // const deltaX = animal.cx - centerX;
-  // const deltaY = animal.cy - centerY;
-
-  // Apply tolerance
-  // const dx = Math.abs(deltaX) <= this.tolerance ? 0 : deltaX * 0.5;
-  // const dy = Math.abs(deltaY) <= this.tolerance ? 0 : deltaY * 0.5;
-
-  // return { dx, dy };
-  // }
 
   /**
    * Returns true if any part of the object is visible in viewport
@@ -61,22 +36,4 @@ export class AimAssist {
     );
   }
 
-  /**
-   * Compute a nudge (dx, dy) in world pixels to move viewport toward animal.
-   * If animal is within tolerance of center, returns {dx:0, dy:0}.
-   */
-  computeNudge(
-    viewport: Viewport,
-    obj: SceneObject
-  ): { dx: number; dy: number } {
-    if (obj.x == null || obj.y == null) return { dx: 0, dy: 0 };
-    const centerX = viewport.x + viewport.width / 2;
-    const centerY = viewport.y + viewport.height / 2;
-    const deltaX = obj.x - centerX;
-    const deltaY = obj.y - centerY;
-
-    const dx = Math.abs(deltaX) <= this.tolerance ? 0 : deltaX * 0.5;
-    const dy = Math.abs(deltaY) <= this.tolerance ? 0 : deltaY * 0.5;
-    return { dx, dy };
-  }
 }

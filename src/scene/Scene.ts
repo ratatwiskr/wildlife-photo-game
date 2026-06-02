@@ -114,7 +114,7 @@ export class Scene {
     tmp.height = h;
     const tctx = tmp.getContext("2d", {
       willReadFrequently: true,
-    } as any) as CanvasRenderingContext2D | null;
+    }) as CanvasRenderingContext2D | null;
     if (!tctx) {
       console.warn("Could not get 2D context for mask extraction");
       return;
@@ -200,12 +200,6 @@ export class Scene {
     obj.found = true;
     return obj.name;
   }
-
-  // filterActiveAnimals(tag: string) {
-  //   return this.definition.animals
-  //     ? this.definition.animals
-  //     : this.definition.animals.filter((a) => a.tags?.includes(tag));
-  // }
 
   allFound(objects = this.definition.objects): boolean {
     return objects.every((a) => a.found);
