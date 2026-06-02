@@ -23,7 +23,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
 
 ## Architecture
 
-- **No framework** — vanilla TS + Canvas2D + DOM. Entrypoint: `src/main.ts` (23-line bootstrap).
+- **No framework** — vanilla TS + Canvas2D + DOM. Entrypoint: `src/main.ts` (bootstrap).
 - Key modules:
   - `GameManager` (`src/core/GameManager.ts`) — orchestrator owning all state (scene, renderer, camera, polaroid, confetti, drag). Methods: `init()`, `loadSceneByName()`, `onCanvasClick()`, shutter handler, `advanceObjective()`, `loop()`.
   - `SceneLoader` (`src/services/SceneLoader.ts`) — scene discovery: manifest fetch, card creation, scene picker DOM, `<select>` population.
@@ -31,7 +31,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
   - `PolaroidUI`, `Confetti` (ui/), `MaskSampler`, `Cooldown` (utils/).
 - Two modes controlled by `sceneType` in scene JSON: `"photo"` (shutter button) or `"wimmelbild"` (direct tap-to-find).
 - Press `d` to toggle debug overlays (mask, crosshair, tolerance circle).
-- **Refactoring plan**: `.tasks/refactor-modularity-v2/README.md` — all 5 phases complete.
+- **Refactoring plan**: `.tasks/refactor-modularity-v3/README.md` — Phases 1-4 pending.
 - **Plan discipline**: Plans in `.tasks/` must use actionable checkboxes (`- [ ]` / `- [x]`) and be kept in sync with actual implementation state. If new work departs from the plan, update the plan first.
 
 ## Scene assets (`assets/scenes/`)
@@ -60,6 +60,7 @@ Each scene is a triplet sharing the same base name: `{name}.jpg`, `{name}_mask.p
   - Position viewport by setting `viewport.x` / `viewport.y` directly — no drag simulation needed
 - **`populateSceneSelect` must not be awaited** (Phase 4.3 — discovered): `GameManager.init()` calls `SceneLoader.populateSceneSelect()` fire-and-forget. If it's awaited, the back button event handler registers too late and the "should switch scene" Cypress test fails due to a race condition. The original code used an async IIFE inside `init()` for the same reason.
 - **Dead code removed**: `src/input/InputHandler.ts` (entire file, Phase 4.4), `InputHandler` import + construction from `main.ts` (Phase 1), `AimAssist.computeNudge()` + commented predecessor (Phase 1), commented `filterActiveAnimals`-like block from `Scene.ts` (Phase 1).
+- **`advanceObjective` reference-comparison bug** (Phase 5 — fixed): `findIndex((o) => o === this.renderer.currentObjective)` never matched because `renderer.currentObjective` is always a fresh object literal. With 2+ objectives, the celebration path was unreachable. Fix: store `currentObjectiveIndex` on `GameManager` instead of searching by reference.
 
 ## Existing instruction sources
 
