@@ -429,7 +429,7 @@ describe("Smoketests", () => {
    * Verifies that attempting to load a non-existent scene doesn't crash the game.
    * The app should gracefully fall back, allowing the user to pick a valid scene.
    */
-  it.skip("should handle invalid scene parameters gracefully", () => {
+  it("should handle invalid scene parameters gracefully", () => {
     // Try to load a scene that doesn't exist
     cy.visit("/?scene=nonexistent_scene_12345", { failOnStatusCode: false });
 
