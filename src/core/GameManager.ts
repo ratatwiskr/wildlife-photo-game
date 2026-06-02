@@ -64,55 +64,54 @@ export class GameManager {
     const params = new URLSearchParams(window.location.search);
     const sceneName = params.get("scene") || "jungle_adventure";
 
+    // setup back button + scene picker unconditionally (survives scene load failure)
+    const backBtn = document.getElementById("back");
+    const scenePicker = document.getElementById("scenePicker");
+    const sceneList = document.getElementById("sceneList");
+    if (backBtn && scenePicker && sceneList) {
+      backBtn.addEventListener("click", () => {
+        const vp = document.getElementById("viewport");
+        console.debug("[main] back pressed, toggling scene picker");
+        if (scenePicker.style.display === "block") {
+          scenePicker.style.display = "none";
+          if (vp) vp.style.display = "inline-block";
+          return;
+        }
+        scenePicker.style.display = "block";
+        if (vp) vp.style.display = "none";
+      });
+
+      // populate scene picker from manifest
+      await this.sceneLoader.buildScenePicker(sceneList, (name) => {
+        this.loadSceneByName(name)
+          .then(() => {
+            const scenePickerEl = document.getElementById("scenePicker");
+            const vp = document.getElementById("viewport");
+            if (scenePickerEl) scenePickerEl.style.display = "none";
+            if (vp) vp.style.display = "inline-block";
+            try {
+              const newUrl = new URL(window.location.href);
+              newUrl.searchParams.set("scene", name);
+              window.history.pushState({}, "", newUrl.toString());
+            } catch (e) {
+              // ignore history failures
+            }
+          })
+          .catch((e) => {
+            console.error("Failed to load scene on card click", name, e);
+          });
+      });
+    }
+
     try {
       await this.loadSceneByName(sceneName);
-
-      // setup back button
-      const backBtn = document.getElementById("back");
-      const scenePicker = document.getElementById("scenePicker");
-      const sceneList = document.getElementById("sceneList");
-      if (backBtn && scenePicker && sceneList) {
-        backBtn.addEventListener("click", () => {
-          const vp = document.getElementById("viewport");
-          console.debug("[main] back pressed, toggling scene picker");
-          if (scenePicker.style.display === "block") {
-            scenePicker.style.display = "none";
-            if (vp) vp.style.display = "inline-block";
-            return;
-          }
-          scenePicker.style.display = "block";
-          if (vp) vp.style.display = "none";
-        });
-
-        // populate scene picker from manifest
-        await this.sceneLoader.buildScenePicker(sceneList, (name) => {
-          this.loadSceneByName(name)
-            .then(() => {
-              const scenePickerEl = document.getElementById("scenePicker");
-              const vp = document.getElementById("viewport");
-              if (scenePickerEl) scenePickerEl.style.display = "none";
-              if (vp) vp.style.display = "inline-block";
-              try {
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.set("scene", name);
-                window.history.pushState({}, "", newUrl.toString());
-              } catch (e) {
-                // ignore history failures
-              }
-            })
-            .catch((e) => {
-              console.error("Failed to load scene on card click", name, e);
-            });
-        });
-      }
-
-      this.canvas.addEventListener("click", (e) => this.onCanvasClick(e));
-      this.initShutterListener();
     } catch (err) {
       console.error("Scene load failed:", err);
       this.drawErrorMessage(`Could not load scene: ${sceneName}`);
-      return;
     }
+
+    this.canvas.addEventListener("click", (e) => this.onCanvasClick(e));
+    this.initShutterListener();
 
     // drag handlers
     this.canvas.addEventListener("pointerdown", (e) => {

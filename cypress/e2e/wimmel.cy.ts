@@ -5,7 +5,7 @@ describe("Wimmelbild flow", () => {
     cy.visit("/?scene=wimmelbild_jungle_adventure");
   });
 
-  it.skip("loads wimmelbild UI and allows direct click-to-find", () => {
+  it("loads wimmelbild UI and allows direct click-to-find", () => {
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
     // shutter should be hidden in wimmelbild mode
@@ -33,8 +33,18 @@ describe("Wimmelbild flow", () => {
       const obj = scene.definition.objects[0];
       expect(obj).to.exist;
 
-      // convert world coords -> client coords
+      // Reposition viewport to center on the target
       const viewport = renderer.viewport as any;
+      viewport.x = Math.max(0, Math.min(
+        obj.x - viewport.width / 2,
+        scene.image.width - viewport.width,
+      ));
+      viewport.y = Math.max(0, Math.min(
+        obj.y - viewport.height / 2,
+        scene.image.height - viewport.height,
+      ));
+
+      // convert world coords -> client coords
       const relX = (obj.x - viewport.x) / viewport.width;
       const relY = (obj.y - viewport.y) / viewport.height;
       const clientRect = canvas.getBoundingClientRect();
