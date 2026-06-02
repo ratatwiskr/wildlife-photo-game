@@ -8,11 +8,14 @@ V2 corrects inaccuracies in the V1 plan based on source code verification. Same 
 
 | Metric | Value |
 |--------|-------|
-| main.ts | ~806 lines (InputHandler removed, MaskSampler extracted) |
-| `as any` casts | **0** (was ~15, all eliminated in Phase 2) |
-| Known bugs fixed | Double-panning, Viewport double-cast, `__app.cameraCtrl` always null, polaroid private access |
+| main.ts | **23 lines** (was ~806, reduced 97%) |
+| GameManager.ts | 521 lines (core orchestrator) |
+| SceneLoader.ts | 224 lines (scene discovery service) |
+| `as any` casts | **0** (all eliminated in Phase 2) |
+| Known bugs fixed | Double-panning, Viewport double-cast, `__app.cameraCtrl` always null, polaroid private access, redundant cameraCtrl creation, duplicated objective-advancement logic |
 | Known bugs remaining | None |
-| Test suite | 10 tests, **8 passing, 2 skipped** (stable across 8+ consecutive runs) |
+| Dead code removed | `InputHandler.ts`, `createSceneCard()` duplicate, redundant `cameraCtrl = new CameraController(...)` |
+| Test suite | 10 tests, **8 passing, 2 skipped** (stable) |
 
 ---
 
@@ -79,15 +82,20 @@ V2 corrects inaccuracies in the V1 plan based on source code verification. Same 
 
 ---
 
-## Phase 4 — Architecture
+## Phase 4 — Architecture (✅ Complete)
 
-- [ ] **4.1 — Extract SceneLoader service**
-  - Move scene JSON fetch, manifest loading, card creation (~200 lines) out of `main.ts`
-  - Includes `loadAvailableScenes()`, `createSceneCard()`, scene picker DOM wiring
-- [ ] **4.2 — Create GameManager class**
-  - Consolidate: scene, renderer, camera, polaroidUI, confetti, drag state, pausedForPolaroid, isLoaded
-  - Expose thin API: `init()`, `loadScene()`, `handleShutter()`, `handleCanvasClick()`, `loop()`
-  - Reduce `main.ts` from ~860 → ~200 lines (thin bootstrap)
+- [x] **4.1 — Extract SceneLoader service** (`src/services/SceneLoader.ts`, 224 lines)
+  - Extracted: `fetchManifest()`, `fetchDefinition()`, `verifyAssets()`, `createSceneCard()`, `buildScenePicker()`, `populateSceneSelect()`
+- [x] **4.2 — Create GameManager class** (`src/core/GameManager.ts`, 521 lines)
+  - Consolidated all game state (scene, renderer, cameraCtrl, polaroidUi, confetti, drag state, etc.)
+  - Extracted `advanceObjective()` — eliminates duplicated objective-advancement between shutter and wimmelbild paths
+  - Removed redundant second `cameraCtrl = new CameraController(...)` and its `TODO` comment
+  - Exposes `scene`, `renderer`, `cameraCtrl` as public properties for `window.__app`
+- [x] **4.3 — Thin `main.ts`** (23 lines, was 806)
+- [x] **4.4 — Cleanup**
+  - Deleted `src/input/InputHandler.ts` (dead code, unused since Phase 1)
+  - Removed redundant `cameraCtrl` creation + TODO
+- [x] **4.5 — Validation**: `npm run build` clean, `npm run cy:run` 8/8 passing (thin bootstrap)
 
 ---
 
