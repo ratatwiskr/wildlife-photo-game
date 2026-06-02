@@ -23,6 +23,7 @@ export class GameManager {
   private pausedForPolaroid = false;
   private isLoaded = false;
   private lastTime = 0;
+  private currentObjectiveIndex = 0;
 
   private isDragging = false;
   private lastX = 0;
@@ -234,8 +235,10 @@ export class GameManager {
         tag,
         emoji: first.emoji,
       };
+      this.currentObjectiveIndex = 0;
     } else {
       this.renderer.currentObjective = undefined;
+      this.currentObjectiveIndex = 0;
     }
     const objEl = document.getElementById("objective");
     if (objEl && def.objectives && (def.objectives as any[])[0]) {
@@ -424,16 +427,15 @@ export class GameManager {
 
   private advanceObjective(celebrateOnComplete: boolean): void {
     const objectives = this.scene.definition.objectives || [];
-    let currentIndex = objectives.findIndex(
-      (o) => o === this.renderer.currentObjective,
-    );
-    if (currentIndex < 0) currentIndex = 0;
-    const currentObj = objectives[currentIndex];
+    const currentObj = objectives[this.currentObjectiveIndex];
+    if (!currentObj) return;
+
     const objectiveObjects = this.scene.getObjectsForObjective(currentObj);
 
     if (this.scene.allFound(objectiveObjects)) {
-      if (currentIndex + 1 < objectives.length) {
-        const nextObj = objectives[currentIndex + 1];
+      if (this.currentObjectiveIndex + 1 < objectives.length) {
+        this.currentObjectiveIndex++;
+        const nextObj = objectives[this.currentObjectiveIndex];
         const nextTag =
           nextObj.tags && nextObj.tags.length
             ? nextObj.tags[0]
