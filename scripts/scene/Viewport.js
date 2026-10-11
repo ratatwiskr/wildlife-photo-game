@@ -19,11 +19,18 @@ export class Viewport {
         this.x = Math.min(Math.max(0, this.x + deltaXWorld), Math.max(0, this.sceneWidth - this.width));
         this.y = Math.min(Math.max(0, this.y + deltaYWorld), Math.max(0, this.sceneHeight - this.height));
     }
-    // check if a world point is inside viewport
-    contains(worldX, worldY) {
-        return (worldX >= this.x &&
-            worldX <= this.x + this.width &&
-            worldY >= this.y &&
-            worldY <= this.y + this.height);
+    /** Convert a world-space point to canvas screen coordinates. */
+    worldToScreen(worldX, worldY, canvasWidth, canvasHeight) {
+        return {
+            x: ((worldX - this.x) / this.width) * canvasWidth,
+            y: ((worldY - this.y) / this.height) * canvasHeight,
+        };
+    }
+    /** Convert a canvas screen point to world-space coordinates. */
+    screenToWorld(screenX, screenY, canvasWidth, canvasHeight) {
+        return {
+            x: this.x + (screenX / canvasWidth) * this.width,
+            y: this.y + (screenY / canvasHeight) * this.height,
+        };
     }
 }

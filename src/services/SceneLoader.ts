@@ -1,7 +1,8 @@
 // src/services/SceneLoader.ts
 import { getBasePath } from "../config.js";
+import { hidePicker } from "../utils/dom.js";
 
-export interface SceneManifestEntry {
+interface SceneManifestEntry {
   name: string;
   sceneType: string;
 }
@@ -42,21 +43,45 @@ export class SceneLoader {
     }
   }
 
+  /** Build the asset URLs for a scene (uses `image` from JSON when present). */
+  private buildAssetPaths(
+    name: string,
+    image?: string,
+  ): { imgPath: string; maskPath: string } {
+    const imgPath = image
+      ? `${this.basePath}/assets/scenes/${image}`
+      : `${this.basePath}/assets/scenes/${name}.jpg`;
+    const maskPath = `${this.basePath}/assets/scenes/${name}_mask.png`;
+    return { imgPath, maskPath };
+  }
+
+  /** Fetch the scene JPG + mask PNG; true when both exist. */
+  private async verifyAssetExists(
+    name: string,
+    image?: string,
+  ): Promise<boolean> {
+    const { imgPath, maskPath } = this.buildAssetPaths(name, image);
+    const [imgRes, maskRes] = await Promise.all([
+      fetch(imgPath, { method: "GET" }),
+      fetch(maskPath, { method: "GET" }),
+    ]);
+    return imgRes.ok && maskRes.ok;
+  }
+
+  private static toPrettyName(name: string): string {
+    return name.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   async verifyAssets(
     name: string,
     def?: Record<string, unknown>,
   ): Promise<boolean> {
     const d = def ?? (await this.fetchDefinition(name));
     if (!d) return false;
-    const imgPath = d.image
-      ? `${this.basePath}/assets/scenes/${d.image as string}`
-      : `${this.basePath}/assets/scenes/${name}.jpg`;
-    const maskPath = `${this.basePath}/assets/scenes/${name}_mask.png`;
-    const [imgRes, maskRes] = await Promise.all([
-      fetch(imgPath, { method: "GET" }),
-      fetch(maskPath, { method: "GET" }),
-    ]);
-    return imgRes.ok && maskRes.ok;
+    return this.verifyAssetExists(
+      name,
+      typeof d.image === "string" ? d.image : undefined,
+    );
   }
 
   async createSceneCard(
@@ -68,24 +93,15 @@ export class SceneLoader {
     try {
       const def = await this.fetchDefinition(name);
       if (!def) return;
-      const imgPath = def.image
-        ? `${this.basePath}/assets/scenes/${def.image as string}`
-        : `${this.basePath}/assets/scenes/${name}.jpg`;
-      const maskPath = `${this.basePath}/assets/scenes/${name}_mask.png`;
-      const [imgRes, maskRes] = await Promise.all([
-        fetch(imgPath, { method: "GET" }),
-        fetch(maskPath, { method: "GET" }),
-      ]);
-      if (!imgRes.ok || !maskRes.ok) return;
+      const image = typeof def.image === "string" ? def.image : undefined;
+      if (!(await this.verifyAssetExists(name, image))) return;
 
+      const { imgPath } = this.buildAssetPaths(name, image);
       const card = document.createElement("div");
       card.className = "scene-card";
       const title = document.createElement("div");
       title.className = "scene-title";
-      const pretty = name
-        .replaceAll("_", " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-      title.textContent = pretty;
+      title.textContent = SceneLoader.toPrettyName(name);
       const thumbWrap = document.createElement("div");
       thumbWrap.className = "thumb-wrap";
       const thumb = document.createElement("img");
@@ -96,8 +112,8 @@ export class SceneLoader {
       card.appendChild(title);
       card.appendChild(thumbWrap);
       card.addEventListener("click", () => onSelect(name));
-      const st = (def.sceneType as string) || "photo";
-      if (st === "wimmelbild") wimmelGroup.appendChild(card);
+      const isWimmel = def.sceneType === "wimmelbild";
+      if (isWimmel) wimmelGroup.appendChild(card);
       else photoGroup.appendChild(card);
     } catch (e) {
       console.debug("[SceneLoader] error creating scene card for", name, e);
@@ -138,10 +154,7 @@ export class SceneLoader {
       close.style.display = "block";
       close.style.marginTop = "12px";
       close.addEventListener("click", () => {
-        const vp = document.getElementById("viewport");
-        const scenePickerEl = document.getElementById("scenePicker");
-        if (scenePickerEl) scenePickerEl.style.display = "none";
-        if (vp) vp.style.display = "inline-block";
+        hidePicker();
       });
       sceneList.appendChild(close);
     } catch (e) {
@@ -163,9 +176,7 @@ export class SceneLoader {
           if (!def || !(await this.verifyAssets(name, def))) continue;
           const o = document.createElement("option");
           o.value = name;
-          o.textContent = name
-            .replaceAll("_", " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase());
+          o.textContent = SceneLoader.toPrettyName(name);
           select.appendChild(o);
         } catch {
           continue;

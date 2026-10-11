@@ -1,4 +1,5 @@
 import { Scene } from "../scene/Scene.js";
+import { createOffscreenCanvas } from "./canvas.js";
 
 /**
  * Sample a pixel from a mask image at world coordinates.
@@ -16,10 +17,10 @@ export function sampleMaskPixel(
   const x = Math.round(worldX);
   const y = Math.round(worldY);
 
-  const tmp = document.createElement("canvas");
-  tmp.width = mask.width;
-  tmp.height = mask.height;
-  const tctx = tmp.getContext("2d", { willReadFrequently: true });
+  const { canvas: tmp, ctx: tctx } = createOffscreenCanvas(
+    mask.width,
+    mask.height
+  );
   if (!tctx) return null;
 
   tctx.drawImage(mask, 0, 0);

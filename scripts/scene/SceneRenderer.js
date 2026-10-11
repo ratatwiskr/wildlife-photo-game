@@ -1,3 +1,5 @@
+// src/scene/SceneRenderer.ts
+import { Scene } from "./Scene.js";
 import { Viewport } from "./Viewport.js";
 export class SceneRenderer {
     canvas;
@@ -15,6 +17,8 @@ export class SceneRenderer {
     flashFadeRate = 0.06;
     flashActive = false;
     suppressCelebration = false;
+    // tolerance radius in world pixels for debug crosshair overlay (set by main.ts)
+    debugTolerance;
     objectiveColors = {};
     currentObjective;
     constructor(canvas) {
@@ -40,7 +44,7 @@ export class SceneRenderer {
         this.objectiveColors = {};
         if (scene.definition.objectives) {
             for (const o of scene.definition.objectives) {
-                const tags = o.tags?.length ? o.tags : o.tag ? [o.tag] : [];
+                const tags = Scene.getObjectiveTags(o);
                 for (const t of tags)
                     this.objectiveColors[t] = this.randomBrightColor();
             }
@@ -105,10 +109,9 @@ export class SceneRenderer {
             const objectiveObjects = this.scene.getObjectsForObjective(this.currentObjective);
             const target = objectiveObjects.find((o) => !o.found && o.x != null && o.y != null);
             if (target && target.x != null && target.y != null) {
-                const relX = (target.x - this.viewport.x) / this.viewport.width;
-                const relY = (target.y - this.viewport.y) / this.viewport.height;
-                const screenX = Math.round(relX * this.canvas.width);
-                const screenY = Math.round(relY * this.canvas.height);
+                const { x: sx, y: sy } = this.viewport.worldToScreen(target.x, target.y, this.canvas.width, this.canvas.height);
+                const screenX = Math.round(sx);
+                const screenY = Math.round(sy);
                 // If the renderer has access to an external tolerance (via camera controller),
                 // draw the capture radius in world pixels translated to screen pixels.
                 // Note: SceneRenderer doesn't directly own camera controller; main.ts can
@@ -170,10 +173,9 @@ export class SceneRenderer {
             if (obj.x == null || obj.y == null)
                 continue;
             // convert world coords -> screen coords (account for scaling)
-            const relX = (obj.x - this.viewport.x) / this.viewport.width;
-            const relY = (obj.y - this.viewport.y) / this.viewport.height;
-            const screenX = Math.round(relX * this.canvas.width);
-            const screenY = Math.round(relY * this.canvas.height);
+            const { x: sx, y: sy } = this.viewport.worldToScreen(obj.x, obj.y, this.canvas.width, this.canvas.height);
+            const screenX = Math.round(sx);
+            const screenY = Math.round(sy);
             const screenRadius = Math.max(8, Math.round((obj.radius ?? 20) * (this.canvas.width / this.viewport.width)));
             // if the circle would be fully off-screen, skip drawing
             if (screenX + screenRadius < 0 ||
@@ -216,11 +218,5 @@ export class SceneRenderer {
     randomBrightColor() {
         const hue = Math.floor(Math.random() * 360);
         return `hsl(${hue}, 100%, 60%)`;
-    }
-    moveCamera(dx, dy) {
-        // move the viewport in world pixels
-        if (!this.viewport)
-            return;
-        this.viewport.pan(dx, dy);
     }
 }

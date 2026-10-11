@@ -111,9 +111,9 @@ Focus on integration testing with cypress, as jest configuration is currently br
 
 ## Cross-Component Data Flow
 
-1. **Scene Load**: `Scene.loadImagesAndExtract()` → fetches JPG + PNG → parses JSON → computes object centroids.
+1. **Scene Load**: `Scene.loadImages()` → fetches JPG + PNG; `Scene.extractPositionsFromMask()` computes object centroids from the mask.
 2. **Render**: `SceneRenderer.setScene()` → creates `Viewport` → renders visible portion to canvas → draws UI overlays.
-3. **Input**: `InputHandler` → pointer drag → `main.ts` converts screen deltas to world deltas → updates camera x/y.
+3. **Input**: `GameManager` pointer-drag handlers → screen deltas to world deltas → `viewport.pan()`.
 4. **Click/Tap**: Screen coordinates → world coordinates (via viewport math) → sample mask color → find matching object → mark found.
 5. **Objectives**: Grouped by tag; render colored highlights; completion tracked across objects with matching tags.
 

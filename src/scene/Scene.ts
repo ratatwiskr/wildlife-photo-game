@@ -1,5 +1,20 @@
 // src/scene/Scene.ts
 import { basePath } from "../config.js";
+import { createOffscreenCanvas } from "../utils/canvas.js";
+
+// ---- runtime validation guards (bridge untyped scene JSON -> typed model) ----
+
+function isSceneObject(value: unknown): value is SceneObject {
+  if (typeof value !== "object" || value === null) return false;
+  const o = value as Record<string, unknown>;
+  return typeof o.name === "string" && typeof o.color === "string";
+}
+
+function isObjective(value: unknown): value is Objective {
+  if (typeof value !== "object" || value === null) return false;
+  const o = value as Record<string, unknown>;
+  return typeof o.title === "string";
+}
 
 export interface SceneObject {
   name: string;
@@ -21,7 +36,7 @@ export interface Objective {
   emoji?: string;
 }
 
-export interface SceneDefinition {
+interface SceneDefinition {
   name: string;
   sceneType: "photo" | "wimmelbild";
   objects?: SceneObject[]; // canonical key now
@@ -34,6 +49,22 @@ export class Scene {
   >;
   public image!: HTMLImageElement;
   public mask!: HTMLImageElement;
+
+  /**
+   * Build a Scene from an unvalidated scene JSON definition, keeping only
+   * entries that match the typed model. Use this instead of casting raw JSON.
+   */
+  static fromDefinition(def: Record<string, unknown>): Scene {
+    const name = typeof def.name === "string" ? def.name : "unknown";
+    const sceneType = def.sceneType === "wimmelbild" ? "wimmelbild" : "photo";
+    const objects: SceneObject[] = Array.isArray(def.objects)
+      ? def.objects.filter(isSceneObject)
+      : [];
+    const objectives: Objective[] = Array.isArray(def.objectives)
+      ? def.objectives.filter(isObjective)
+      : [];
+    return new Scene({ name, sceneType, objects, objectives });
+  }
 
   constructor(def: SceneDefinition) {
     // Require canonical "objects" key (no legacy support)
@@ -48,12 +79,7 @@ export class Scene {
     };
   }
 
-  /** Load scene image & mask, then extract per-object positions from mask */
-  async loadImagesAndExtract(): Promise<void> {
-    await this.loadImages();
-    this.extractPositionsFromMask();
-  }
-
+  /** Load scene image & mask from assets. */
   async loadImages(): Promise<void> {
     const imageUrl = `${basePath}/assets/scenes/${this.definition.name}.jpg`;
     const maskUrl = `${basePath}/assets/scenes/${this.definition.name}_mask.png`;
@@ -109,12 +135,7 @@ export class Scene {
     const h = this.mask.height;
 
     // draw mask to an offscreen canvas
-    const tmp = document.createElement("canvas");
-    tmp.width = w;
-    tmp.height = h;
-    const tctx = tmp.getContext("2d", {
-      willReadFrequently: true,
-    }) as CanvasRenderingContext2D | null;
+    const { ctx: tctx } = createOffscreenCanvas(w, h);
     if (!tctx) {
       console.warn("Could not get 2D context for mask extraction");
       return;
@@ -207,11 +228,21 @@ export class Scene {
 
   getObjectsForObjective(obj?: Objective) {
     if (!obj) return this.definition.objects;
-    const tags = obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+    const tags = Scene.getObjectiveTags(obj);
     if (tags.length === 0) return this.definition.objects;
     return this.definition.objects.filter((a) =>
       a.tags?.some((t) => tags.includes(t))
     );
+  }
+
+  /** Resolve an objective's tag list, accepting either `tags[]` or legacy `tag`. */
+  static getObjectiveTags(obj: Objective): string[] {
+    return obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+  }
+
+  /** Fallback display label for an objective. */
+  static getObjectiveLabel(obj: Pick<Objective, "title" | "emoji">): string {
+    return obj.emoji || obj.title || "📍";
   }
 
   static rgbToHex(r: number, g: number, b: number): string {

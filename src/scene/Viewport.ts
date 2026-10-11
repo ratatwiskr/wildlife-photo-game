@@ -34,13 +34,29 @@ export class Viewport {
     );
   }
 
-  // check if a world point is inside viewport
-  contains(worldX: number, worldY: number): boolean {
-    return (
-      worldX >= this.x &&
-      worldX <= this.x + this.width &&
-      worldY >= this.y &&
-      worldY <= this.y + this.height
-    );
+  /** Convert a world-space point to canvas screen coordinates. */
+  worldToScreen(
+    worldX: number,
+    worldY: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): { x: number; y: number } {
+    return {
+      x: ((worldX - this.x) / this.width) * canvasWidth,
+      y: ((worldY - this.y) / this.height) * canvasHeight,
+    };
+  }
+
+  /** Convert a canvas screen point to world-space coordinates. */
+  screenToWorld(
+    screenX: number,
+    screenY: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): { x: number; y: number } {
+    return {
+      x: this.x + (screenX / canvasWidth) * this.width,
+      y: this.y + (screenY / canvasHeight) * this.height,
+    };
   }
 }

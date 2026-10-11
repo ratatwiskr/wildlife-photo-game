@@ -6,7 +6,7 @@ import { PolaroidUI } from "../ui/Polaroid.js";
 import { Confetti } from "../ui/Confetti.js";
 import { sampleMaskPixel } from "../utils/MaskSampler.js";
 import { SceneLoader } from "../services/SceneLoader.js";
-import { basePath } from "../config.js";
+import { hidePicker, showPicker } from "../utils/dom.js";
 
 export class GameManager {
   scene!: Scene;
@@ -71,25 +71,19 @@ export class GameManager {
     const sceneList = document.getElementById("sceneList");
     if (backBtn && scenePicker && sceneList) {
       backBtn.addEventListener("click", () => {
-        const vp = document.getElementById("viewport");
         console.debug("[main] back pressed, toggling scene picker");
         if (scenePicker.style.display === "block") {
-          scenePicker.style.display = "none";
-          if (vp) vp.style.display = "inline-block";
+          hidePicker();
           return;
         }
-        scenePicker.style.display = "block";
-        if (vp) vp.style.display = "none";
+        showPicker();
       });
 
       // populate scene picker from manifest
       await this.sceneLoader.buildScenePicker(sceneList, (name) => {
         this.loadSceneByName(name)
           .then(() => {
-            const scenePickerEl = document.getElementById("scenePicker");
-            const vp = document.getElementById("viewport");
-            if (scenePickerEl) scenePickerEl.style.display = "none";
-            if (vp) vp.style.display = "inline-block";
+            hidePicker();
             try {
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.set("scene", name);
@@ -207,29 +201,23 @@ export class GameManager {
   // ---- scene loading ----
 
   private async loadSceneByName(name: string): Promise<void> {
-    const defUrl = `${basePath}/assets/scenes/${name}.json`;
-    console.log("[main] loading", defUrl);
-    const res = await fetch(defUrl);
-    if (!res.ok) throw new Error(`Failed to load ${defUrl}`);
-    const def: Record<string, unknown> = await res.json();
+    console.log("[main] loading scene", name);
+    const def = await this.sceneLoader.fetchDefinition(name);
+    if (!def) throw new Error(`Failed to load scene: ${name}`);
 
-    if (
-      def.objectives &&
-      Array.isArray(def.objectives) &&
-      def.objectives.length > 1
-    ) {
+    if (Array.isArray(def.objectives) && def.objectives.length > 1) {
       def.objectives = this.shuffleArray(def.objectives);
     }
 
-    this.scene = new Scene(def as any);
+    this.scene = Scene.fromDefinition(def);
     await this.scene.loadImages();
     this.scene.extractPositionsFromMask();
 
     this.renderer.setScene(this.scene);
-    if (def.objectives && (def.objectives as any[])[0]) {
-      const first = (def.objectives as any[])[0];
-      const tag =
-        first.tags && first.tags.length ? first.tags[0] : first.tag || "";
+    const objectives = this.scene.definition.objectives;
+    const first = objectives[0];
+    if (first) {
+      const tag = Scene.getObjectiveTags(first)[0] ?? "";
       this.renderer.currentObjective = {
         title: first.title,
         tag,
@@ -241,11 +229,8 @@ export class GameManager {
       this.currentObjectiveIndex = 0;
     }
     const objEl = document.getElementById("objective");
-    if (objEl && def.objectives && (def.objectives as any[])[0]) {
-      objEl.textContent =
-        (def.objectives as any[])[0].emoji ||
-        (def.objectives as any[])[0].title ||
-        "📍";
+    if (objEl && first) {
+      objEl.textContent = Scene.getObjectiveLabel(first);
     }
     this.isLoaded = true;
 
@@ -303,10 +288,12 @@ export class GameManager {
     const clickX = (e.clientX - rect.left) * dpr;
     const clickY = (e.clientY - rect.top) * dpr;
 
-    const vx = this.renderer.viewport.x;
-    const vy = this.renderer.viewport.y;
-    const worldX = vx + (clickX / this.canvas.width) * this.renderer.viewport.width;
-    const worldY = vy + (clickY / this.canvas.height) * this.renderer.viewport.height;
+    const { x: worldX, y: worldY } = this.renderer.viewport.screenToWorld(
+      clickX,
+      clickY,
+      this.canvas.width,
+      this.canvas.height,
+    );
 
     console.log("[main] onCanvasClick world coords", { x: worldX, y: worldY });
 
@@ -352,7 +339,7 @@ export class GameManager {
         "[main] objectives",
         objectives.map((o) => ({
           emoji: o.emoji || o.title,
-          tag: o.tag || (o.tags && o.tags[0]) || undefined,
+          tag: Scene.getObjectiveTags(o)[0] ?? undefined,
           found: this.scene.getObjectsForObjective(o).filter((a) => a.found).length,
         })),
       );
@@ -408,6 +395,7 @@ export class GameManager {
 
         if (captureRes && captureRes.polaroid) {
           console.log("[main] captured", captureRes.name);
+          const polaroid = captureRes.polaroid; // hoist: property narrowing doesn't survive into the closure
           this.renderer.suppressCelebration = true;
           setTimeout(() => {
             this.pausedForPolaroid = true;
@@ -416,7 +404,7 @@ export class GameManager {
               this.renderer.suppressCelebration = false;
               this.advanceObjective(true);
             });
-            this.polaroidUi.show(captureRes.polaroid as HTMLCanvasElement);
+            this.polaroidUi.show(polaroid);
           }, 1000);
         }
       }
@@ -436,10 +424,7 @@ export class GameManager {
       if (this.currentObjectiveIndex + 1 < objectives.length) {
         this.currentObjectiveIndex++;
         const nextObj = objectives[this.currentObjectiveIndex];
-        const nextTag =
-          nextObj.tags && nextObj.tags.length
-            ? nextObj.tags[0]
-            : nextObj.tag || "";
+        const nextTag = Scene.getObjectiveTags(nextObj)[0] ?? "";
         this.renderer.currentObjective = {
           title: nextObj.title,
           tag: nextTag,
@@ -447,7 +432,7 @@ export class GameManager {
         };
         const objEl = document.getElementById("objective");
         if (objEl && nextObj) {
-          objEl.textContent = nextObj.emoji || nextObj.title || "📍";
+          objEl.textContent = Scene.getObjectiveLabel(nextObj);
         }
         console.log("[main] objective completed, advanced to next", nextObj);
       } else if (celebrateOnComplete) {
@@ -490,7 +475,7 @@ export class GameManager {
       const span = document.createElement("span");
       const objs = this.scene.getObjectsForObjective(obj);
       const done = this.scene.allFound(objs);
-      span.textContent = `${done ? "✅➜ " : ""}${obj.emoji || obj.title || "📍"}`;
+      span.textContent = `${done ? "✅➜ " : ""}${Scene.getObjectiveLabel(obj)}`;
       span.style.opacity = done ? "1" : "0.6";
       if (
         !done &&
