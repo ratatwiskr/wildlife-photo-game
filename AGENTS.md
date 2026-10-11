@@ -31,7 +31,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
   - `PolaroidUI`, `Confetti` (ui/), `MaskSampler`, `Cooldown` (utils/).
 - Two modes controlled by `sceneType` in scene JSON: `"photo"` (shutter button) or `"wimmelbild"` (direct tap-to-find).
 - Press `d` to toggle debug overlays (mask, crosshair, tolerance circle).
-- **Refactoring plan**: `.tasks/refactor-modularity-v3/README.md` — Phases 1-4 pending.
+- **Refactoring plan**: `.tasks/refactor-modularity-v3/README.md` — Phases 0–5 complete; Phase 6 verification (rebuild + cy:run) pending after the Phase 1–4 cleanup.
 - **Plan discipline**: Plans in `.tasks/` must use actionable checkboxes (`- [ ]` / `- [x]`) and be kept in sync with actual implementation state. If new work departs from the plan, update the plan first.
 
 ## Scene assets (`assets/scenes/`)
@@ -59,7 +59,8 @@ Each scene is a triplet sharing the same base name: `{name}.jpg`, `{name}_mask.p
   - Use `{ force: true }` on polaroid overlay `.click()` calls
   - Position viewport by setting `viewport.x` / `viewport.y` directly — no drag simulation needed
 - **`populateSceneSelect` must not be awaited** (Phase 4.3 — discovered): `GameManager.init()` calls `SceneLoader.populateSceneSelect()` fire-and-forget. If it's awaited, the back button event handler registers too late and the "should switch scene" Cypress test fails due to a race condition. The original code used an async IIFE inside `init()` for the same reason.
-- **Dead code removed**: `src/input/InputHandler.ts` (entire file, Phase 4.4), `InputHandler` import + construction from `main.ts` (Phase 1), `AimAssist.computeNudge()` + commented predecessor (Phase 1), commented `filterActiveAnimals`-like block from `Scene.ts` (Phase 1).
+- **Dead code removed**: `src/input/InputHandler.ts` (entire file, Phase 4.4), `InputHandler` import + construction from `main.ts` (Phase 1), `AimAssist.computeNudge()` + commented predecessor (Phase 1), commented `filterActiveAnimals`-like block from `Scene.ts` (Phase 1); V3 Phase 1: unused `config.ts` vars, `Scene.loadImagesAndExtract()`, `SceneRenderer.moveCamera()`, `Viewport.contains()`, exported `SceneDefinition`/`SceneManifestEntry`.
+- **Validate, don't cast** (V3 Phase 3): raw scene JSON arrives as `Record<string, unknown>` — construct scenes via `Scene.fromDefinition()`, narrow `typeof` in `SceneLoader`, and let `CaptureResult` types narrow in `GameManager`. No `as any`/`as string` should reappear in `src/`.
 - **`advanceObjective` reference-comparison bug** (Phase 5 — fixed): `findIndex((o) => o === this.renderer.currentObjective)` never matched because `renderer.currentObjective` is always a fresh object literal. With 2+ objectives, the celebration path was unreachable. Fix: store `currentObjectiveIndex` on `GameManager` instead of searching by reference.
 
 ## Existing instruction sources
