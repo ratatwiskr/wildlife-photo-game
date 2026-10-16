@@ -168,12 +168,20 @@ jobs:
 
 ```bash
 npm install
-npm run build
-npm run serve # or npx http-server .
+npm run build # generates assets/scenes/scenes-manifest.json + compiles src/ → scripts/
+npm run serve # local static server on http://127.0.0.1:8090
 ```
 
-- Open on tablet: `http://<local-ip>:8080`
-- CI/CD deploys to GitHub Pages automatically.
+- `npm run serve` is a **local development convenience only** — browsers block
+  `fetch()` against `file://` URLs, so the game must be served over HTTP
+  locally. In production no Node process runs anywhere: GitHub Pages serves the
+  static files built by CI.
+- Open on tablet: `http://<local-ip>:8090`
+- `scripts/` and `assets/scenes/scenes-manifest.json` are **generated, not
+  committed** (gitignored). Run `npm run build` after cloning or after changing
+  `src/` or scene files.
+- CI/CD (`deploy.yml`) builds from source on every push to `main` and publishes
+  the runtime files to the `gh-pages` branch, which GitHub Pages serves.
 
 ### Quick setup for Volta on Ubuntu
 

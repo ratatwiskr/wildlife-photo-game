@@ -38,14 +38,20 @@ jobs:
 #      - name: Validate scenes
 #        run: npm run validate:scenes
 
-      - name: Clean unnecessary files
+      # Publish ONLY runtime files: the game must not depend on any dev-only
+      # content (tests, CI configs, task docs, GIMP sources, …).
+      - name: Stage runtime files
         run: |
-          rm -rf src node_modules
-          echo "🧹 Cleaned build folder (keeping compiled JS only)."
+          mkdir _site
+          cp index.html _site/
+          cp -r scripts styles _site/
+          rsync -a --exclude='*.xcf' --exclude='template/' assets _site/
+          echo "📦 Staged files for GitHub Pages:"
+          find _site -type f | sort
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          publish_dir: ./_site
  
