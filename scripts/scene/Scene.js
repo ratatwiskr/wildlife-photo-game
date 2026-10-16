@@ -1,9 +1,38 @@
 // src/scene/Scene.ts
 import { basePath } from "../config.js";
+import { createOffscreenCanvas } from "../utils/canvas.js";
+// ---- runtime validation guards (bridge untyped scene JSON -> typed model) ----
+function isSceneObject(value) {
+    if (typeof value !== "object" || value === null)
+        return false;
+    const o = value;
+    return typeof o.name === "string" && typeof o.color === "string";
+}
+function isObjective(value) {
+    if (typeof value !== "object" || value === null)
+        return false;
+    const o = value;
+    return typeof o.title === "string";
+}
 export class Scene {
     definition;
     image;
     mask;
+    /**
+     * Build a Scene from an unvalidated scene JSON definition, keeping only
+     * entries that match the typed model. Use this instead of casting raw JSON.
+     */
+    static fromDefinition(def) {
+        const name = typeof def.name === "string" ? def.name : "unknown";
+        const sceneType = def.sceneType === "wimmelbild" ? "wimmelbild" : "photo";
+        const objects = Array.isArray(def.objects)
+            ? def.objects.filter(isSceneObject)
+            : [];
+        const objectives = Array.isArray(def.objectives)
+            ? def.objectives.filter(isObjective)
+            : [];
+        return new Scene({ name, sceneType, objects, objectives });
+    }
     constructor(def) {
         // Require canonical "objects" key (no legacy support)
         const objects = def.objects ?? [];
@@ -16,11 +45,7 @@ export class Scene {
             sceneType,
         };
     }
-    /** Load scene image & mask, then extract per-object positions from mask */
-    async loadImagesAndExtract() {
-        await this.loadImages();
-        this.extractPositionsFromMask();
-    }
+    /** Load scene image & mask from assets. */
     async loadImages() {
         const imageUrl = `${basePath}/assets/scenes/${this.definition.name}.jpg`;
         const maskUrl = `${basePath}/assets/scenes/${this.definition.name}_mask.png`;
@@ -70,12 +95,7 @@ export class Scene {
         const w = this.mask.width;
         const h = this.mask.height;
         // draw mask to an offscreen canvas
-        const tmp = document.createElement("canvas");
-        tmp.width = w;
-        tmp.height = h;
-        const tctx = tmp.getContext("2d", {
-            willReadFrequently: true,
-        });
+        const { ctx: tctx } = createOffscreenCanvas(w, h);
         if (!tctx) {
             console.warn("Could not get 2D context for mask extraction");
             return;
@@ -139,21 +159,24 @@ export class Scene {
         obj.found = true;
         return obj.name;
     }
-    // filterActiveAnimals(tag: string) {
-    //   return this.definition.animals
-    //     ? this.definition.animals
-    //     : this.definition.animals.filter((a) => a.tags?.includes(tag));
-    // }
     allFound(objects = this.definition.objects) {
         return objects.every((a) => a.found);
     }
     getObjectsForObjective(obj) {
         if (!obj)
             return this.definition.objects;
-        const tags = obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+        const tags = Scene.getObjectiveTags(obj);
         if (tags.length === 0)
             return this.definition.objects;
         return this.definition.objects.filter((a) => a.tags?.some((t) => tags.includes(t)));
+    }
+    /** Resolve an objective's tag list, accepting either `tags[]` or legacy `tag`. */
+    static getObjectiveTags(obj) {
+        return obj.tags?.length ? obj.tags : obj.tag ? [obj.tag] : [];
+    }
+    /** Fallback display label for an objective. */
+    static getObjectiveLabel(obj) {
+        return obj.emoji || obj.title || "📍";
     }
     static rgbToHex(r, g, b) {
         const toHex = (n) => n.toString(16).padStart(2, "0");

@@ -1,5 +1,6 @@
 export class PolaroidUI {
     container;
+    dismissCallback = null;
     constructor() {
         this.container = document.createElement("div");
         this.container.setAttribute("data-test-id", "polaroid-overlay");
@@ -11,7 +12,14 @@ export class PolaroidUI {
         this.container.style.background = "rgba(0,0,0,0.6)";
         this.container.style.zIndex = "9999";
         this.container.style.cursor = "pointer";
-        this.container.addEventListener("click", () => this.hide());
+        this.container.addEventListener("click", () => {
+            this.hide();
+            this.dismissCallback?.();
+            this.dismissCallback = null;
+        });
+    }
+    onDismiss(cb) {
+        this.dismissCallback = cb;
     }
     show(polaroid) {
         this.container.innerHTML = "";
