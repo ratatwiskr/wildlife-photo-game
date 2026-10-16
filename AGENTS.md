@@ -31,7 +31,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
   - `PolaroidUI`, `Confetti` (ui/), `MaskSampler`, `Cooldown` (utils/).
 - Two modes controlled by `sceneType` in scene JSON: `"photo"` (shutter button) or `"wimmelbild"` (direct tap-to-find).
 - Press `d` to toggle debug overlays (mask, crosshair, tolerance circle).
-- **Refactoring plan**: `.tasks/refactor-modularity-v3/README.md` — Phases 0–5 complete; Phase 6 verification (rebuild + cy:run) pending after the Phase 1–4 cleanup.
+- **Refactoring plan**: `.tasks/refactor-modularity-v3/README.md` — all phases 0–6 complete; Phase 6 verification (`build` + `cy:run` + `validate:scenes`) green at 10/10, compiled `scripts/` in sync with `src/`.
 - **Plan discipline**: Plans in `.tasks/` must use actionable checkboxes (`- [ ]` / `- [x]`) and be kept in sync with actual implementation state. If new work departs from the plan, update the plan first.
 
 ## Scene assets (`assets/scenes/`)

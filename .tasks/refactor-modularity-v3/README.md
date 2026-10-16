@@ -15,7 +15,7 @@ V3 builds on V2 (all 5 phases complete). The V2 refactor fixed architecture, dea
 | `as string` casts | unmentioned | **0** (narrowed with `typeof` checks) |
 | Dead code removed | InputHandler.ts | + config.ts unused vars, `Scene.loadImagesAndExtract()`, `SceneRenderer.moveCamera()`, `Viewport.contains()`, unexported `SceneDefinition`/`SceneManifestEntry`, redundant `getContext` cast |
 | New shared utils | — | `src/utils/canvas.ts` (`createOffscreenCanvas`), `src/utils/dom.ts` (`hidePicker`/`showPicker`), `Scene.getObjectiveTags()`, `Scene.getObjectiveLabel()`, `Viewport.worldToScreen()`/`screenToWorld()` |
-| Test suite | 8/8 passing, 2 skipped | **10/10 passing, 0 skipped** (last recorded at Phase 0; re-run pending code cleanup) |
+| Test suite | 8/8 passing, 2 skipped | **10/10 passing, 0 skipped** (re-verified at Phase 6 after the Phase 1–4 cleanup) |
 | Known bugs | None claimed | **Objective advancement fixed** (Phase 5) |
 
 ---
@@ -117,13 +117,13 @@ Replaced `findIndex`/reference-comparison with a `currentObjectiveIndex` field t
 
 ---
 
-## Phase 6 — Final Verification (⏳ Pending)
+## Phase 6 — Final Verification (✅ Complete)
 
-- [ ] Rebuild + re-run the authoritative suite after the Phase 1–4 cleanup:
+- [x] Rebuild + re-run the authoritative suite after the Phase 1–4 cleanup:
   ```bash
   npm run build && npm run cy:run && npm run validate:scenes
   ```
-- [ ] Regenerate + commit the compiled `scripts/` output (confirmed uncommitted since the refactor; deploy CI builds from source, so nothing is blocked, but the tracked tree should match `src/`)
+- [x] Confirm compiled `scripts/` output matches `src/` — rebuild produced no diff; the tracked tree was already in sync (no commit needed)
 
 ## Validation Checklist (every phase)
 
