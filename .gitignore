@@ -6,6 +6,11 @@ yarn.lock
 dist/
 *.tsbuildinfo
 
+# ---> Generated build output (produced by `npm run build`; CI builds fresh for GitHub Pages)
+scripts/
+assets/scenes/scenes-manifest.json
+_site/
+
 # ---> IDE - Visual Studio Code
 .vscode/
 *.code-workspace

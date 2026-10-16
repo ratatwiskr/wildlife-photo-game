@@ -38,7 +38,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
 
 Each scene is a triplet sharing the same base name: `{name}.jpg`, `{name}_mask.png`, `{name}.json`. Mask PNG uses unique `#RRGGBB` color keys matched in JSON. Run `npm run validate:scenes` before merging scene changes.
 
-`npm run generate:scenes-manifest` produces `assets/scenes/scenes-manifest.json` — must be committed.
+`npm run generate:scenes-manifest` produces `assets/scenes/scenes-manifest.json` — generated output, **not committed** (gitignored; CI rebuilds it for GitHub Pages, see `.tasks/refactor-to-github-pages/`). Same for `scripts/`.
 
 ## Conventions
 
