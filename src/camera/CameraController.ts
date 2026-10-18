@@ -70,9 +70,17 @@ export class CameraController {
       });
       const startX = this.viewport.x;
       const startY = this.viewport.y;
-      // move by full delta so the animal becomes centered
-      const endX = startX + deltaX;
-      const endY = startY + deltaY;
+      // move by full delta so the animal becomes centered — but clamp to the
+      // scene bounds like Viewport.pan() does, so nudging toward a target near
+      // an edge never shows pixels outside the panorama
+      const endX = Math.min(
+        Math.max(0, startX + deltaX),
+        Math.max(0, this.viewport.sceneWidth - this.viewport.width),
+      );
+      const endY = Math.min(
+        Math.max(0, startY + deltaY),
+        Math.max(0, this.viewport.sceneHeight - this.viewport.height),
+      );
       const start = performance.now();
 
       const step = (now: number) => {

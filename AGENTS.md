@@ -17,7 +17,7 @@ No bundler — `tsc` compiles `src/` → `scripts/` (mirrored structure). HTML l
 ## Testing
 
 - **Cypress** (`cypress/e2e/`) is the authoritative test suite. All UI/feature work must include Cypress coverage.
-- **Jest** (`tests/`) is broken and off-limits. Do not fix or run it.
+- **Jest** (`tests/`) — unit/integration suite: `npx jest` (or `npx jest tests/<file>`). Runs in jsdom; `tests/helpers/fakeCanvas2d.ts` provides a pixel-backed Canvas2D double since jsdom has no canvas. Complement to Cypress, not a replacement — UI/feature work should still add Cypress coverage where it touches real browser rendering.
 - Cypress tests expect `window.__app` (exposed by `GameManager.loadSceneByName()`) and `data-test-id` attributes on key elements.
 - Single test: `npx cypress run --spec cypress/e2e/smoketests.cy.ts`
 
