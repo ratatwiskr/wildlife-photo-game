@@ -98,7 +98,7 @@ export class SceneRenderer {
             try {
                 ctx.drawImage(this.scene.mask, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
             }
-            catch (err) {
+            catch {
                 // ignore draw failures in debug mode
             }
             ctx.restore();

@@ -123,6 +123,11 @@ export class CameraController {
             }
             // build polaroid canvas: cut bounding box from scene.image using mask
             const objDef = this.scene.definition.objects.find((a) => a.name === foundName);
+            if (!objDef) {
+                // markFoundByColor just matched this name; a miss means the scene
+                // definition changed underneath us — fail through the catch below.
+                throw new Error(`matched object "${foundName}" missing from definition`);
+            }
             const pad = 12;
             const left = Math.max(0, Math.floor((objDef.x ?? 0) - (objDef.radius ?? 30) - pad));
             const top = Math.max(0, Math.floor((objDef.y ?? 0) - (objDef.radius ?? 30) - pad));
