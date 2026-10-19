@@ -10,7 +10,7 @@ interface Scene {
   sceneType: "photo" | "wimmelbild";
 }
 
-function readJsonFile(filePath: string): any {
+function readJsonFile(filePath: string): unknown {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch (error) {
@@ -27,19 +27,23 @@ function logError(sceneName: string, filePath: string, msg: string): void {
 }
 
 function validateScene(
-  scene: any,
+  scene: unknown,
   sceneName: string,
   filePath: string,
 ): scene is Scene {
+  const candidate = scene as Partial<Scene> | null | undefined;
   if (
-    !scene.name ||
-    typeof scene.name !== "string" ||
-    scene.name.trim() === ""
+    !candidate ||
+    typeof candidate.name !== "string" ||
+    candidate.name.trim() === ""
   ) {
     logError(sceneName, filePath, "missing required field: name");
   }
 
-  if (!scene.sceneType || !["photo", "wimmelbild"].includes(scene.sceneType)) {
+  if (
+    typeof candidate.sceneType !== "string" ||
+    !["photo", "wimmelbild"].includes(candidate.sceneType)
+  ) {
     logError(
       sceneName,
       filePath,

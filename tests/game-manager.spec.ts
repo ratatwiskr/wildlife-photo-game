@@ -31,6 +31,26 @@ interface AppGlobal {
   };
 }
 
+/** Narrow an optional value to non-undefined or fail the test with context. */
+function expectDefined<T>(value: T | undefined, label = "value"): T {
+  if (value === undefined) throw new Error(`expected ${label} to be defined`);
+  return value;
+}
+
+/** getElementById that fails loudly when the fixture is missing the node. */
+function el(id: string): HTMLElement {
+  const node = document.getElementById(id);
+  if (!node) throw new Error(`#${id} is missing from the DOM`);
+  return node;
+}
+
+/** querySelector that fails loudly when the selector matches nothing. */
+function qs<T extends Element = Element>(selector: string): T {
+  const node = document.querySelector<T>(selector);
+  if (!node) throw new Error(`${selector} is missing from the DOM`);
+  return node;
+}
+
 const GREEN: [number, number, number, number] = [0, 255, 0, 255];
 const BLUE: [number, number, number, number] = [0, 0, 255, 255];
 const CLEAR: [number, number, number, number] = [0, 0, 0, 0];
@@ -79,7 +99,7 @@ function makeFakeLoader(
   const loader = {
     fetchManifest: jest.fn(async () => []),
     fetchDefinition,
-    populateSceneSelect: jest.fn(async () => {}),
+    populateSceneSelect: jest.fn(async () => undefined),
     buildScenePicker,
   } as unknown as SceneLoader;
   return {
@@ -177,9 +197,9 @@ beforeEach(() => {
   jest.useFakeTimers();
   // deterministic Fisher-Yates in loadSceneByName: j === i, order preserved
   jest.spyOn(Math, "random").mockReturnValue(0.999999);
-  jest.spyOn(console, "log").mockImplementation(() => {});
-  jest.spyOn(console, "warn").mockImplementation(() => {});
-  jest.spyOn(console, "error").mockImplementation(() => {});
+  jest.spyOn(console, "log").mockImplementation(() => undefined);
+  jest.spyOn(console, "warn").mockImplementation(() => undefined);
+  jest.spyOn(console, "error").mockImplementation(() => undefined);
   // jsdom never loads images; attach pixel-backed fakes instead so mask
   // sampling and centroid extraction see real pixels
   jest
@@ -203,29 +223,33 @@ afterEach(() => {
 describe("GameManager boot", () => {
   it("exposes a non-null cameraCtrl on window.__app for photo scenes (Phase 2.3 regression)", async () => {
     const { manager } = await boot({ photo_scene: PHOTO_DEF });
-    const app = (window as unknown as AppGlobal).__app;
-    expect(app).toBeDefined();
-    expect(app!.cameraCtrl).not.toBeNull();
-    expect(app!.cameraCtrl).toBe(manager.cameraCtrl);
+    const app = expectDefined(
+      (window as unknown as AppGlobal).__app,
+      "window.__app",
+    );
+    expect(app.cameraCtrl).not.toBeNull();
+    expect(app.cameraCtrl).toBe(manager.cameraCtrl);
   });
 
   it("exposes a null cameraCtrl on window.__app for wimmelbild scenes", async () => {
     await boot({ wimmel_scene: WIMMEL_DEF });
-    const app = (window as unknown as AppGlobal).__app;
-    expect(app).toBeDefined();
-    expect(app!.cameraCtrl).toBeNull();
+    const app = expectDefined(
+      (window as unknown as AppGlobal).__app,
+      "window.__app",
+    );
+    expect(app.cameraCtrl).toBeNull();
   });
 
   it("sets the first objective as current and labels the HUD", async () => {
     const { manager } = await boot({ wimmel_scene: WIMMEL_DEF });
     expect(manager.renderer.currentObjective?.title).toBe("Find the lion");
-    expect(document.getElementById("objective")!.textContent).toBe("\u{1F981}");
+    expect(el("objective").textContent).toBe("\u{1F981}");
   });
 
   it("hides the shutter UI for wimmelbild scenes", async () => {
     await boot({ wimmel_scene: WIMMEL_DEF });
-    expect(document.getElementById("ui")!.style.display).toBe("none");
-    expect(document.querySelector(".viewfinder")!.style.display).toBe("none");
+    expect(el("ui").style.display).toBe("none");
+    expect(qs<HTMLDivElement>(".viewfinder").style.display).toBe("none");
   });
 
   it("resolves init and reports the failure when a scene cannot be loaded", async () => {
@@ -271,7 +295,7 @@ describe("wimmelbild tap-to-find flow", () => {
     expect(manager.scene.definition.objects[0].found).toBe(true);
     // old code never advanced here: reference lookup of renderer.currentObjective
     expect(manager.renderer.currentObjective?.title).toBe("Find the frog");
-    expect(document.getElementById("objective")!.textContent).toBe("\u{1F438}");
+    expect(el("objective").textContent).toBe("\u{1F438}");
   });
 
   it("completes the final objective without advancing and without celebration", async () => {
@@ -296,7 +320,7 @@ describe("wimmelbild tap-to-find flow", () => {
   });
 
   it("updates the objective progress strip as objectives complete", async () => {
-    const { manager } = await boot(
+    await boot(
       { wimmel_scene: WIMMEL_DEF },
       "wimmel_scene",
       (mask) => paintRect(mask, 230, 180, 40, 40, GREEN),
@@ -388,22 +412,23 @@ describe("scene picker flow", () => {
     };
     const pushSpy = jest
       .spyOn(window.history, "pushState")
-      .mockImplementation(() => {});
+      .mockImplementation(() => undefined);
     const { fake } = await boot(
       { photo_scene: PHOTO_DEF, ocean: oceanDef },
       "photo_scene",
     );
 
     expect(fake.capturedPicker).toBeDefined();
-    fake.capturedPicker!("ocean");
+    expectDefined(fake.capturedPicker, "capturedPicker")("ocean");
     await flushMicrotasks();
 
-    const app = (window as unknown as AppGlobal).__app;
-    expect(app!.scene.definition.name).toBe("ocean");
-    expect(document.getElementById("scenePicker")!.style.display).toBe("none");
-    expect(document.getElementById("viewport")!.style.display).toBe(
-      "inline-block",
+    const app = expectDefined(
+      (window as unknown as AppGlobal).__app,
+      "window.__app",
     );
+    expect(app.scene.definition.name).toBe("ocean");
+    expect(el("scenePicker").style.display).toBe("none");
+    expect(el("viewport").style.display).toBe("inline-block");
     expect(pushSpy).toHaveBeenCalledWith(
       {},
       "",

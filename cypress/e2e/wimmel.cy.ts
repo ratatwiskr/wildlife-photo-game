@@ -1,4 +1,7 @@
-require("cypress-terminal-report/src/installLogsCollector")();
+import installLogsCollector from "cypress-terminal-report/src/installLogsCollector";
+import { appOf, requireApp } from "../support/appGlobals";
+
+installLogsCollector();
 
 describe("Wimmelbild flow", () => {
   beforeEach(() => {
@@ -16,16 +19,15 @@ describe("Wimmelbild flow", () => {
 
     // wait until app exposes runtime handles
     cy.window().should((win) => {
-      expect((win as any).__app).to.exist;
-      expect((win as any).__app.scene).to.exist;
-      expect((win as any).__app.renderer).to.exist;
+      const app = appOf(win);
+      expect(app).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
     });
 
     // compute screen coordinates for the first objective object and click it
     cy.window().then((win) => {
-      const app = (win as any).__app as any;
-      const scene = app.scene as any;
-      const renderer = app.renderer as any;
+      const { scene, renderer } = requireApp(win);
       const canvas = win.document.querySelector(
         '[data-test-id="game-canvas"]',
       ) as HTMLCanvasElement;
@@ -34,7 +36,7 @@ describe("Wimmelbild flow", () => {
       expect(obj).to.exist;
 
       // Reposition viewport to center on the target
-      const viewport = renderer.viewport as any;
+      const viewport = renderer.viewport;
       viewport.x = Math.max(0, Math.min(
         obj.x - viewport.width / 2,
         scene.image.width - viewport.width,

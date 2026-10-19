@@ -130,8 +130,8 @@ describe("CameraController.nudgeToTarget", () => {
 
     expect(await runNudge(target, vp, 900)).toBe("nudged");
     // after the nudge, the target must sit at the viewport center
-    expect(vp.x + vp.width / 2).toBeCloseTo(target.x!, 5);
-    expect(vp.y + vp.height / 2).toBeCloseTo(target.y!, 5);
+    expect(vp.x + vp.width / 2).toBeCloseTo(target.x as number, 5);
+    expect(vp.y + vp.height / 2).toBeCloseTo(target.y as number, 5);
   });
 
   test("nudge does not push the viewport past the right scene edge", async () => {
@@ -194,10 +194,10 @@ describe("CameraController.attemptCapture", () => {
     const result = cam.attemptCapture();
 
     expect(result).not.toBeNull();
-    expect(result!.name).toBe("elephant");
+    expect(result?.name).toBe("elephant");
     // Scene copies its object list on construction: assert on the scene's copy
     expect(scene.definition.objects[0].found).toBe(true);
-    expect(result!.polaroid).toBeInstanceOf(HTMLCanvasElement);
+    expect(result?.polaroid).toBeInstanceOf(HTMLCanvasElement);
   });
 
   test("capture returns null when cooldown is active (rapid shutter)", () => {
@@ -219,12 +219,12 @@ describe("CameraController.attemptCapture", () => {
     const cam = makeController(scene, makeViewport());
     mockSample.mockReturnValueOnce("#ff0000").mockReturnValueOnce("#00ff00");
 
-    expect(cam.attemptCapture()!.name).toBe("a");
+    expect(cam.attemptCapture()?.name).toBe("a");
     expect(cam.attemptCapture()).toBeNull(); // in cooldown
 
     jest.advanceTimersByTime(1000);
 
-    expect(cam.attemptCapture()!.name).toBe("b");
+    expect(cam.attemptCapture()?.name).toBe("b");
     expect(scene.definition.objects.map((o) => o.found)).toEqual([true, true]);
   });
 
@@ -259,7 +259,7 @@ describe("CameraController.attemptCapture", () => {
 
     jest.advanceTimersByTime(1000);
 
-    expect(cam.attemptCapture()!.name).toBe("elephant"); // recovered
+    expect(cam.attemptCapture()?.name).toBe("elephant"); // recovered
   });
 
   test("capture with no unfound target returns null (scene already complete)", () => {

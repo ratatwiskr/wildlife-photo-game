@@ -97,25 +97,63 @@ class FakeCanvas2D {
 
   // --- inert methods (rendering only, no reads depend on them) ---
 
-  clearRect(): void {}
-  fillRect(): void {}
-  strokeRect(): void {}
-  fillText(): void {}
-  strokeText(): void {}
-  save(): void {}
-  restore(): void {}
-  beginPath(): void {}
-  closePath(): void {}
-  moveTo(): void {}
-  lineTo(): void {}
-  arc(): void {}
-  stroke(): void {}
-  fill(): void {}
-  translate(): void {}
-  rotate(): void {}
-  scale(): void {}
-  setTransform(): void {}
-  resetTransform(): void {}
+  clearRect(): void {
+    /* inert */
+  }
+  fillRect(): void {
+    /* inert */
+  }
+  strokeRect(): void {
+    /* inert */
+  }
+  fillText(): void {
+    /* inert */
+  }
+  strokeText(): void {
+    /* inert */
+  }
+  save(): void {
+    /* inert */
+  }
+  restore(): void {
+    /* inert */
+  }
+  beginPath(): void {
+    /* inert */
+  }
+  closePath(): void {
+    /* inert */
+  }
+  moveTo(): void {
+    /* inert */
+  }
+  lineTo(): void {
+    /* inert */
+  }
+  arc(): void {
+    /* inert */
+  }
+  stroke(): void {
+    /* inert */
+  }
+  fill(): void {
+    /* inert */
+  }
+  translate(): void {
+    /* inert */
+  }
+  rotate(): void {
+    /* inert */
+  }
+  scale(): void {
+    /* inert */
+  }
+  setTransform(): void {
+    /* inert */
+  }
+  resetTransform(): void {
+    /* inert */
+  }
   measureText(): TextMetrics {
     return { width: 0 } as TextMetrics;
   }
@@ -135,7 +173,7 @@ export function installFakeCanvas2D(): void {
   proto.getContext = function (
     this: HTMLCanvasElement,
     type: string,
-    options?: unknown,
+    _options?: unknown,
   ): unknown {
     if (type !== "2d") return null;
     let ctx = cache.get(this);

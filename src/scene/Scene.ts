@@ -113,7 +113,7 @@ export class Scene {
       };
 
       // safety timeout: if loading takes too long, fallback to tiny placeholder
-      const to = setTimeout(() => {
+      setTimeout(() => {
         if (!resolved) {
           img.src =
             "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACwAAAAAAQABAEACAkQBADs=";

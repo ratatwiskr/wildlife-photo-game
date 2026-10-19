@@ -88,7 +88,7 @@ export class GameManager {
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.set("scene", name);
               window.history.pushState({}, "", newUrl.toString());
-            } catch (e) {
+            } catch {
               // ignore history failures
             }
           })
@@ -118,7 +118,6 @@ export class GameManager {
 
     this.canvas.addEventListener("pointermove", (e) => {
       if (!this.isDragging || !this.scene || !this.renderer || !this.renderer.viewport) return;
-      const rect = this.canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const dxCss = e.clientX - this.lastX;
       const dyCss = e.clientY - this.lastY;
@@ -266,7 +265,7 @@ export class GameManager {
         renderer: this.renderer,
         cameraCtrl: this.cameraCtrl,
       };
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 
@@ -494,7 +493,6 @@ export class GameManager {
   // ---- render loop ----
 
   private loop(ts: number): void {
-    const dt = ts - this.lastTime;
     this.lastTime = ts;
     if (Math.floor(ts / 1000) % 5 === 0 && ts % 1000 < 32) {
       console.log("[main] loop tick", { ts });

@@ -1,10 +1,10 @@
-const { defineConfig } = require("cypress");
-const installLogsPrinter = require("cypress-terminal-report/src/installLogsPrinter");
+import { defineConfig } from "cypress";
+import installLogsPrinter from "cypress-terminal-report/src/installLogsPrinter";
 
 export default defineConfig({
   e2e: {
     baseUrl: "http://localhost:8090",
-    setupNodeEvents(on, config): void {
+    setupNodeEvents(on, _config): void {
       // implement node event listeners here
       installLogsPrinter(on, {
         printLogsToConsole: "always",

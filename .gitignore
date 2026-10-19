@@ -21,6 +21,11 @@ _site/
 # ---> MacOS
 .DS_Store
 
+# ---> Cypress test artifacts
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
 # ---> Logs
 logs/
 *.log

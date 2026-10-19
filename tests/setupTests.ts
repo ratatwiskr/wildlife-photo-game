@@ -10,8 +10,8 @@
   hash: "",
   port: "8080",
   // methods on Location
-  assign: (_url?: string) => {},
-  reload: () => {},
-  replace: (_url?: string) => {},
+  assign: (_url?: string) => undefined,
+  reload: () => undefined,
+  replace: (_url?: string) => undefined,
   toString: () => "http://localhost/",
 } as unknown as Location;

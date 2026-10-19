@@ -139,7 +139,7 @@ export class SceneRenderer {
           dWidth,
           dHeight
         );
-      } catch (err) {
+      } catch {
         // ignore draw failures in debug mode
       }
       ctx.restore();

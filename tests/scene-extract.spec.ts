@@ -7,7 +7,6 @@ import {
 
 const RED: [number, number, number, number] = [255, 0, 0, 255];
 const BLUE: [number, number, number, number] = [0, 0, 255, 255];
-const GREEN: [number, number, number, number] = [0, 255, 0, 255];
 const BLACK: [number, number, number, number] = [0, 0, 0, 255];
 const CLEAR: [number, number, number, number] = [0, 0, 0, 0];
 
@@ -146,7 +145,7 @@ describe("Scene.extractPositionsFromMask", () => {
 
     it("extracts nothing from an empty mask", () => {
       const scene = makeScene([{ name: "red_block", color: "#ff0000" }]);
-      extractWithMask(scene, 100, 100, () => {});
+      extractWithMask(scene, 100, 100, () => undefined);
       expect(scene.definition.objects[0].x).toBeUndefined();
     });
   });

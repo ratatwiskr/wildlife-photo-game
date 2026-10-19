@@ -1,4 +1,7 @@
-require("cypress-terminal-report/src/installLogsCollector")();
+import installLogsCollector from "cypress-terminal-report/src/installLogsCollector";
+import { appOf, requireApp } from "../support/appGlobals";
+
+installLogsCollector();
 
 describe("Smoketests", () => {
   it("should load the scene and display key elements", () => {
@@ -99,16 +102,15 @@ describe("Smoketests", () => {
 
     // Verify app state is ready
     cy.window().should((win) => {
-      expect((win as any).__app).to.exist;
-      expect((win as any).__app.scene).to.exist;
-      expect((win as any).__app.renderer).to.exist;
+      const app = appOf(win);
+      expect(app).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
     });
 
     // Nudge viewport to center the lion
     cy.window().then((win) => {
-      const app = (win as any).__app as any;
-      const scene = app.scene as any;
-      const renderer = app.renderer as any;
+      const { scene, renderer } = requireApp(win);
       const firstObj = scene.definition.objects[0];
       if (firstObj && renderer.viewport) {
         renderer.viewport.x = firstObj.x - renderer.viewport.width / 2;
@@ -147,17 +149,15 @@ describe("Smoketests", () => {
     // Wait for app initialization
     cy.wait(500);
     cy.window().should((win) => {
-      const app = (win as any).__app;
+      const app = appOf(win);
       expect(app).to.exist;
-      expect(app.scene).to.exist;
-      expect(app.renderer).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
     });
 
     // Ensure viewport is centered on target
     cy.window().then((win) => {
-      const app = (win as any).__app as any;
-      const scene = app.scene as any;
-      const renderer = app.renderer as any;
+      const { scene, renderer } = requireApp(win);
       const firstObj = scene.definition.objects[0];
       if (firstObj && renderer.viewport) {
         renderer.viewport.x = firstObj.x - renderer.viewport.width / 2;
@@ -196,17 +196,15 @@ describe("Smoketests", () => {
     // Wait for app initialization
     cy.wait(500);
     cy.window().should((win) => {
-      const app = (win as any).__app;
+      const app = appOf(win);
       expect(app).to.exist;
-      expect(app.scene).to.exist;
-      expect(app.renderer).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
     });
 
     // Ensure viewport is centered on target
     cy.window().then((win) => {
-      const app = (win as any).__app as any;
-      const scene = app.scene as any;
-      const renderer = app.renderer as any;
+      const { scene, renderer } = requireApp(win);
       const firstObj = scene.definition.objects[0];
       if (firstObj && renderer.viewport) {
         renderer.viewport.x = firstObj.x - renderer.viewport.width / 2;
@@ -256,20 +254,20 @@ describe("Smoketests", () => {
     // Wait for app initialization + centroid computation
     cy.wait(500);
     cy.window().should((win) => {
-      const app = (win as any).__app;
+      const app = appOf(win);
       expect(app).to.exist;
-      expect(app.scene).to.exist;
-      expect(app.renderer).to.exist;
-      expect(app.scene.definition.objects[0].x).to.exist;
-      expect(app.renderer.viewport).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
+      expect(app?.scene.definition.objects[0].x).to.exist;
+      expect(app?.renderer.viewport).to.exist;
     });
 
     // Center viewport on first objective target
     cy.window().then((win) => {
-      const app = (win as any).__app;
-      const viewport = app.renderer.viewport;
-      const objective = app.renderer.currentObjective;
-      const objs = app.scene.getObjectsForObjective(objective);
+      const { scene, renderer } = requireApp(win);
+      const viewport = renderer.viewport;
+      const objective = renderer.currentObjective;
+      const objs = scene.getObjectsForObjective(objective);
       const target = objs.find((o) => !o.found);
       expect(target).to.exist;
       viewport.x = target.x - viewport.width / 2;
@@ -300,10 +298,10 @@ describe("Smoketests", () => {
 
     // Center viewport on second objective target
     cy.window().then((win) => {
-      const app = (win as any).__app;
-      const viewport = app.renderer.viewport;
-      const objective = app.renderer.currentObjective;
-      const objs = app.scene.getObjectsForObjective(objective);
+      const { scene, renderer } = requireApp(win);
+      const viewport = renderer.viewport;
+      const objective = renderer.currentObjective;
+      const objs = scene.getObjectsForObjective(objective);
       const target = objs.find((o) => !o.found);
       expect(target).to.exist;
       viewport.x = target.x - viewport.width / 2;
@@ -342,17 +340,17 @@ describe("Smoketests", () => {
     // Wait for app init + centroids via should() which Cypress auto-retries
     cy.wait(500);
     cy.window().should((win) => {
-      const app = (win as any).__app;
+      const app = appOf(win);
       expect(app).to.exist;
-      expect(app.scene).to.exist;
-      expect(app.renderer).to.exist;
-      expect(app.scene.definition.objects[0].x).to.exist;
-      expect(app.renderer.viewport).to.exist;
+      expect(app?.scene).to.exist;
+      expect(app?.renderer).to.exist;
+      expect(app?.scene.definition.objects[0].x).to.exist;
+      expect(app?.renderer.viewport).to.exist;
     });
 
     // --- Scenario 1: Target too far → capture skipped ---
     cy.window().then((win) => {
-      const { renderer } = (win as any).__app;
+      const { renderer } = requireApp(win);
       renderer.viewport.x = 0;
       renderer.viewport.y = 0;
     });
@@ -369,10 +367,10 @@ describe("Smoketests", () => {
 
     // --- Scenario 2: Off-center but within gate → nudge animation → capture ---
     cy.window().then((win) => {
-      const app = (win as any).__app;
-      const viewport = app.renderer.viewport;
-      const objective = app.renderer.currentObjective;
-      const objs = app.scene.getObjectsForObjective(objective);
+      const { scene, renderer } = requireApp(win);
+      const viewport = renderer.viewport;
+      const objective = renderer.currentObjective;
+      const objs = scene.getObjectsForObjective(objective);
       const target = objs.find((o) => !o.found);
       // Compute offset that is > tolerance (200px) but < trigger gate (0.6 × minDim)
       const tol = 200;
@@ -400,11 +398,11 @@ describe("Smoketests", () => {
 
     // --- Scenario 3: Target already centered → immediate capture (no nudge) ---
     cy.window().then((win) => {
-      const app = (win as any).__app;
-      const viewport = app.renderer.viewport;
+      const { scene, renderer } = requireApp(win);
+      const viewport = renderer.viewport;
       // After first objective completed, currentObjective advanced to second
-      const objective = app.renderer.currentObjective;
-      const objs = app.scene.getObjectsForObjective(objective);
+      const objective = renderer.currentObjective;
+      const objs = scene.getObjectsForObjective(objective);
       const target = objs.find((o) => !o.found);
       expect(target).to.exist;
       viewport.x = target.x - viewport.width / 2;
