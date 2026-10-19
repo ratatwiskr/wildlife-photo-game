@@ -17,6 +17,3 @@ export function getBasePath(location: Location = globalThis.location): string {
 }
 
 export const basePath = getBasePath();
-
-// Optional helper for debugging:
-console.log(`[config] basePath = "${basePath}"`);

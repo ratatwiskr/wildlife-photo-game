@@ -23,6 +23,22 @@ const config: Config.InitialOptions = {
   moduleFileExtensions: ["ts", "js", "json"],
   roots: ["<rootDir>/tests"],
   verbose: true,
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/main.ts", // browser bootstrap, not unit-testable
+    "!src/**/*.d.ts",
+  ],
+  coverageDirectory: "<rootDir>/coverage",
+  // Floors sit just under the current suite so a regression fails CI without
+  // making every small change brittle. Raise them as coverage grows.
+  coverageThreshold: {
+    global: {
+      statements: 78,
+      branches: 62,
+      functions: 74,
+      lines: 80,
+    },
+  },
 };
 
 export default config;

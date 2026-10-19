@@ -25,6 +25,10 @@ _site/
 cypress/screenshots/
 cypress/videos/
 cypress/downloads/
+cypress/results/
+
+# ---> Jest coverage output
+coverage/
 
 # ---> Logs
 logs/

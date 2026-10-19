@@ -29,14 +29,14 @@ jobs:
       - name: Verify TypeScript installation
         run: npx tsc -v
 
+      - name: Run tests
+        run: npm test
+
+      - name: Validate scenes
+        run: npm run validate:scenes
+
       - name: Build TypeScript
         run: npm run build
-
-#     - name: Run tests
-#       run: npm test
-
-#      - name: Validate scenes
-#        run: npm run validate:scenes
 
       # Publish ONLY runtime files: the game must not depend on any dev-only
       # content (tests, CI configs, task docs, GIMP sources, …).

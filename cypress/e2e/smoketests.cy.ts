@@ -187,18 +187,13 @@ describe("Smoketests", () => {
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
     cy.get('[data-test-id="shutter-button"]').should("be.visible");
 
-    // Wait for app to initialize by checking for scene ready log (or use timeout for scene load)
-    cy.get("body").then(() => {
-      // Wait a bit for initialization to complete
-      cy.wait(500);
-    });
-
-    // Verify app state is ready
+    // Wait for app init + mask centroid computation (should() auto-retries)
     cy.window().should((win) => {
       const app = appOf(win);
       expect(app).to.exist;
       expect(app?.scene).to.exist;
       expect(app?.renderer).to.exist;
+      expect(app?.scene.definition.objects[0].x).to.exist;
     });
 
     // Nudge viewport to center the lion
@@ -239,13 +234,13 @@ describe("Smoketests", () => {
     cy.visit("/?scene=jungle_adventure");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
-    // Wait for app initialization
-    cy.wait(500);
+    // Wait for app init + mask centroid computation (should() auto-retries)
     cy.window().should((win) => {
       const app = appOf(win);
       expect(app).to.exist;
       expect(app?.scene).to.exist;
       expect(app?.renderer).to.exist;
+      expect(app?.scene.definition.objects[0].x).to.exist;
     });
 
     // Ensure viewport is centered on target
@@ -286,13 +281,13 @@ describe("Smoketests", () => {
     cy.visit("/?scene=jungle_adventure");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
-    // Wait for app initialization
-    cy.wait(500);
+    // Wait for app init + mask centroid computation (should() auto-retries)
     cy.window().should((win) => {
       const app = appOf(win);
       expect(app).to.exist;
       expect(app?.scene).to.exist;
       expect(app?.renderer).to.exist;
+      expect(app?.scene.definition.objects[0].x).to.exist;
     });
 
     // Ensure viewport is centered on target
@@ -344,8 +339,7 @@ describe("Smoketests", () => {
     cy.visit("/?scene=jungle_adventure_with_sun");
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
-    // Wait for app initialization + centroid computation
-    cy.wait(500);
+    // Wait for app init + centroid computation (should() auto-retries)
     cy.window().should((win) => {
       const app = appOf(win);
       expect(app).to.exist;
@@ -431,7 +425,6 @@ describe("Smoketests", () => {
     cy.get('[data-test-id="game-canvas"]').should("be.visible");
 
     // Wait for app init + centroids via should() which Cypress auto-retries
-    cy.wait(500);
     cy.window().should((win) => {
       const app = appOf(win);
       expect(app).to.exist;

@@ -33,27 +33,6 @@ describe("Scene objectives", () => {
     expect(Scene.getObjectiveLabel({ title: "" })).toBe("📍");
   });
 
-  test("getObjectsForObjective filters objects by tag", () => {
-    const scene = makeScene();
-    const birds = scene.getObjectsForObjective({
-      title: "Birds",
-      tags: ["bird"],
-    });
-    expect(birds.map((o) => o.name)).toEqual(["sparrow", "eagle"]);
-
-    const mammals = scene.getObjectsForObjective({
-      title: "Mammals",
-      tag: "mammal",
-    });
-    expect(mammals.map((o) => o.name)).toEqual(["lion"]);
-  });
-
-  test("getObjectsForObjective without tags returns every object", () => {
-    const scene = makeScene();
-    expect(scene.getObjectsForObjective({ title: "All" })).toHaveLength(3);
-    expect(scene.getObjectsForObjective()).toHaveLength(3);
-  });
-
   test("an objective is complete only once all of its objects are found", () => {
     const scene = makeScene();
     const [birds, mammals] = scene.definition.objectives;

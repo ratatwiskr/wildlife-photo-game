@@ -236,19 +236,3 @@ export function paintRect(
     }
   }
 }
-
-/** Read back a single pixel as [r, g, b, a] from a fake image. */
-export function getPixel(
-  img: HTMLImageElement,
-  x: number,
-  y: number,
-): [number, number, number, number] {
-  const fake = img as unknown as FakeImageLike;
-  const off = (y * fake.width + x) * 4;
-  return [
-    fake.__pixels[off],
-    fake.__pixels[off + 1],
-    fake.__pixels[off + 2],
-    fake.__pixels[off + 3],
-  ];
-}
