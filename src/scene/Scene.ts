@@ -144,7 +144,7 @@ export class Scene {
     const data = tctx.getImageData(0, 0, w, h).data;
 
     // prepare mapping colorHex -> accumulation
-    type Acc = {
+    interface Acc {
       sumX: number;
       sumY: number;
       count: number;
@@ -152,7 +152,7 @@ export class Scene {
       minY: number;
       maxX: number;
       maxY: number;
-    };
+    }
     const accMap = new Map<string, Acc>();
 
     for (let y = 0; y < h; y++) {

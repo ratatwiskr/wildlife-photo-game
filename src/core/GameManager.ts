@@ -5,7 +5,7 @@ import { CameraController } from "../camera/CameraController.js";
 import { PolaroidUI } from "../ui/Polaroid.js";
 import { Confetti } from "../ui/Confetti.js";
 import { sampleMaskPixel } from "../utils/MaskSampler.js";
-import { SceneLoader } from "../services/SceneLoader.js";
+import type { SceneLoader } from "../services/SceneLoader.js";
 import { hidePicker, showPicker } from "../utils/dom.js";
 
 export class GameManager {

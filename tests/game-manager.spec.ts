@@ -14,7 +14,7 @@
  */
 import { GameManager } from "../src/core/GameManager";
 import { Scene } from "../src/scene/Scene";
-import { SceneLoader } from "../src/services/SceneLoader";
+import type { SceneLoader } from "../src/services/SceneLoader";
 import { Confetti } from "../src/ui/Confetti";
 import {
   installFakeCanvas2D,
@@ -23,13 +23,13 @@ import {
   paintRect,
 } from "./helpers/fakeCanvas2d";
 
-type AppGlobal = {
+interface AppGlobal {
   __app?: {
     scene: Scene;
     renderer: unknown;
     cameraCtrl: unknown;
   };
-};
+}
 
 const GREEN: [number, number, number, number] = [0, 255, 0, 255];
 const BLUE: [number, number, number, number] = [0, 0, 255, 255];

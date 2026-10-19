@@ -1,10 +1,10 @@
-import { SceneObject } from "../scene/Scene.js";
-import { Viewport } from "../scene/Viewport.js";
+import type { SceneObject } from "../scene/Scene.js";
+import type { Viewport } from "../scene/Viewport.js";
 
 export class AimAssist {
   private tolerance: number;
 
-  constructor(tolerancePx: number = 200) {
+  constructor(tolerancePx = 200) {
     // increased default tolerance to make development easier during dev
     this.tolerance = tolerancePx;
   }

@@ -84,7 +84,7 @@ for (const base of listSceneBases()) {
   // Use canonical "objects" key
   const items = Array.isArray(data.objects) ? data.objects : [];
 
-  const colorsFromJson: Set<string> = new Set(
+  const colorsFromJson = new Set<string>(
     items
       .map((a: { color: string }) =>
         a.color ? String(a.color).toUpperCase() : "",

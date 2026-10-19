@@ -1,5 +1,5 @@
-import { Scene, SceneObject, Objective } from "../scene/Scene.js";
-import { Viewport } from "../scene/Viewport.js";
+import type { Scene, SceneObject, Objective } from "../scene/Scene.js";
+import type { Viewport } from "../scene/Viewport.js";
 import { AimAssist } from "./AimAssist.js";
 import { Cooldown } from "../utils/Cooldown.js";
 import { sampleMaskPixel } from "../utils/MaskSampler.js";

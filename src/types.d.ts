@@ -1,6 +1,6 @@
-import { Scene } from "./scene/Scene.js";
-import { SceneRenderer } from "./scene/SceneRenderer.js";
-import { CameraController } from "./camera/CameraController.js";
+import type { Scene } from "./scene/Scene.js";
+import type { SceneRenderer } from "./scene/SceneRenderer.js";
+import type { CameraController } from "./camera/CameraController.js";
 
 declare global {
   interface Window {

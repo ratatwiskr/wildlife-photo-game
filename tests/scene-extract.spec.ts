@@ -11,7 +11,7 @@ const GREEN: [number, number, number, number] = [0, 255, 0, 255];
 const BLACK: [number, number, number, number] = [0, 0, 0, 255];
 const CLEAR: [number, number, number, number] = [0, 0, 0, 0];
 
-function makeScene(objects: Array<{ name: string; color: string }>): Scene {
+function makeScene(objects: { name: string; color: string }[]): Scene {
   return new Scene({
     name: "test_scene",
     sceneType: "photo",
