@@ -13,5 +13,3 @@ export function getBasePath(location = globalThis.location) {
     return isLocal ? "." : project;
 }
 export const basePath = getBasePath();
-// Optional helper for debugging:
-console.log(`[config] basePath = "${basePath}"`);
