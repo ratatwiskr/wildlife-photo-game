@@ -23,6 +23,8 @@ export interface ViewportLike {
   y: number;
   width: number;
   height: number;
+  sceneWidth: number;
+  sceneHeight: number;
 }
 
 export interface SceneLike {
